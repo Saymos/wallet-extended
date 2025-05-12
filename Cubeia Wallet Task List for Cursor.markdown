@@ -27,11 +27,11 @@ This task list guides you through implementing the Cubeia Wallet application usi
     - **Files**: `service/AccountService.java`
 
 ### 6. Write Transaction Service Tests
-- [ ] **Prompt**: "Create `TransactionServiceTest.java` in `service/` under the test directory. Write unit tests using JUnit 5 and Mockito. Test the `transfer` method for the following scenarios: 1) A successful transfer correctly deducts from the sender and adds to the receiver, and creates a `Transaction` record. 2) A transfer throws a specific custom exception (e.g., `InsufficientFundsException`) if the sender's balance is too low. 3) A transfer throws `AccountNotFoundException` if either the sender or receiver account does not exist. 4) Consider mocking concurrent access if possible in unit tests, or primarily rely on integration tests for full concurrency validation (Task 8). Mock `AccountRepository` and `TransactionRepository`. After completing this task, update this task list by marking this task as `[x]`, save the changes, and proceed to the next unfinished task."
+- [x] **Prompt**: "Create `TransactionServiceTest.java` in `service/` under the test directory. Write unit tests using JUnit 5 and Mockito. Test the `transfer` method for the following scenarios: 1) A successful transfer correctly deducts from the sender and adds to the receiver, and creates a `Transaction` record. 2) A transfer throws a specific custom exception (e.g., `InsufficientFundsException`) if the sender's balance is too low. 3) A transfer throws `AccountNotFoundException` if either the sender or receiver account does not exist. 4) Consider mocking concurrent access if possible in unit tests, or primarily rely on integration tests for full concurrency validation (Task 8). Mock `AccountRepository` and `TransactionRepository`. After completing this task, update this task list by marking this task as `[x]`, save the changes, and proceed to the next unfinished task."
 - **Files**: `service/TransactionServiceTest.java`, potentially `exception/InsufficientFundsException.java`
 
 ### 7. Implement Transaction Service & Verify
-- [ ] **7a. Implement:** **Prompt**: "Create `TransactionService.java` in `service/` under the main directory. Implement the class with `@Service`. Implement the `transfer(Long fromAccountId, Long toAccountId, BigDecimal amount)` method. This method must:
+- [x] **7a. Implement:** **Prompt**: "Create `TransactionService.java` in `service/` under the main directory. Implement the class with `@Service`. Implement the `transfer(Long fromAccountId, Long toAccountId, BigDecimal amount)` method. This method must:
     1.  Be annotated with `@Transactional` to ensure atomicity.
     2.  Fetch both the sender and receiver `Account` entities using `AccountRepository`. Handle `AccountNotFoundException` if either is missing.
     3.  **Crucially, ensure pessimistic locking** is applied when fetching the accounts to prevent race conditions during concurrent transfers. This might involve defining a custom repository method with `@Lock(LockModeType.PESSIMISTIC_WRITE)` and calling that, or ensuring the default `findById` respects the lock mode within the `@Transactional` context (verify based on JPA provider behavior, but explicitly requesting the lock via a custom method is often clearer).
@@ -41,7 +41,7 @@ This task list guides you through implementing the Cubeia Wallet application usi
     7.  Create and save a `Transaction` record using `TransactionRepository`.
     Autowire `AccountRepository` and `TransactionRepository`. Create `InsufficientFundsException` if needed."
     - **Files**: `service/TransactionService.java`, `exception/InsufficientFundsException.java`, potentially update `repository/AccountRepository.java`
-- [ ] **7b. Test & Debug:** **Prompt**: "Run the tests in `TransactionServiceTest.java`. If any tests fail, analyze the errors and and rewrite the implementation in `TransactionService.java` until all tests pass."
+- [x] **7b. Test & Debug:** **Prompt**: "Run the tests in `TransactionServiceTest.java`. If any tests fail, analyze the errors and and rewrite the implementation in `TransactionService.java` until all tests pass."
     - **Files**: `service/TransactionService.java`
 
 ### 8. Write Wallet Controller Tests (Integration Tests)

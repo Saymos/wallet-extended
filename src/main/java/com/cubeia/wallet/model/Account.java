@@ -86,7 +86,7 @@ public class Account {
      * 
      * @param newBalance the new balance to set
      */
-    void updateBalance(BigDecimal newBalance) {
+    public void updateBalance(BigDecimal newBalance) {
         this.balance = newBalance;
     }
     

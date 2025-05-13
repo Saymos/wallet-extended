@@ -92,7 +92,8 @@ public class ExceptionHandlingTest {
         TransferRequestDto transferRequest = new TransferRequestDto(
                 sender.getId(),
                 receiver.getId(),
-                new BigDecimal("100.00"));
+                new BigDecimal("100.00"),
+                null);
         
         // when - attempting the transfer
         ResponseEntity<Object> response = restTemplate.postForEntity(
@@ -118,7 +119,8 @@ public class ExceptionHandlingTest {
         TransferRequestDto transferRequest = new TransferRequestDto(
                 sender.getId(),
                 receiver.getId(),
-                BigDecimal.ZERO);
+                BigDecimal.ZERO,
+                null);
         
         // when - attempting the transfer
         ResponseEntity<Object> response = restTemplate.postForEntity(
@@ -148,7 +150,8 @@ public class ExceptionHandlingTest {
         TransferRequestDto transferRequest = new TransferRequestDto(
                 sender.getId(),
                 receiver.getId(),
-                new BigDecimal("50.00"));
+                new BigDecimal("50.00"),
+                null);
         
         // when - attempting the transfer
         ResponseEntity<Object> response = restTemplate.postForEntity(

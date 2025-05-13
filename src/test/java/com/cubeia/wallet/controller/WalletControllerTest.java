@@ -111,7 +111,8 @@ public class WalletControllerTest {
         TransferRequestDto transferRequest = new TransferRequestDto(
             fromAccount.getId(),
             toAccount.getId(),
-            new BigDecimal("100.00")
+            new BigDecimal("100.00"),
+            null
         );
 
         // when
@@ -140,7 +141,8 @@ public class WalletControllerTest {
         TransferRequestDto transferRequest = new TransferRequestDto(
             fromAccount.getId(),
             toAccount.getId(),
-            new BigDecimal("100.00")
+            new BigDecimal("100.00"),
+            null
         );
 
         // when
@@ -169,7 +171,8 @@ public class WalletControllerTest {
         TransferRequestDto transferRequest = new TransferRequestDto(
             UUID.randomUUID(),
             toAccount.getId(),
-            new BigDecimal("100.00")
+            new BigDecimal("100.00"),
+            null
         );
 
         // when
@@ -192,7 +195,8 @@ public class WalletControllerTest {
         TransferRequestDto transferRequest = new TransferRequestDto(
             fromAccount.getId(),
             toAccount.getId(),
-            new BigDecimal("-50.00")
+            new BigDecimal("-50.00"),
+            null
         );
 
         // when
@@ -217,7 +221,8 @@ public class WalletControllerTest {
         TransferRequestDto transferRequest = new TransferRequestDto(
             fromAccount.getId(),
             toAccount.getId(),
-            new BigDecimal("100.00")
+            new BigDecimal("100.00"),
+            null
         );
 
         restTemplate.postForEntity(
@@ -275,7 +280,8 @@ public class WalletControllerTest {
         TransferRequestDto transferRequest = new TransferRequestDto(
             fromAccount.getId(),
             toAccount.getId(),
-            new BigDecimal("100.00")
+            new BigDecimal("100.00"),
+            null
         );
 
         // when - execute transfers concurrently

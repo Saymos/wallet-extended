@@ -16,6 +16,7 @@ import com.cubeia.wallet.dto.BalanceResponseDto;
 import com.cubeia.wallet.dto.TransferRequestDto;
 import com.cubeia.wallet.model.Account;
 import com.cubeia.wallet.model.Transaction;
+import com.cubeia.wallet.repository.TransactionRepository;
 import com.cubeia.wallet.service.AccountService;
 import com.cubeia.wallet.service.TransactionService;
 
@@ -37,10 +38,13 @@ public class WalletController {
 
     private final AccountService accountService;
     private final TransactionService transactionService;
+    private final TransactionRepository transactionRepository;
 
-    public WalletController(AccountService accountService, TransactionService transactionService) {
+    public WalletController(AccountService accountService, TransactionService transactionService, 
+                            TransactionRepository transactionRepository) {
         this.accountService = accountService;
         this.transactionService = transactionService;
+        this.transactionRepository = transactionRepository;
     }
 
     /**
@@ -89,10 +93,10 @@ public class WalletController {
      */
     @PostMapping("/transfers")
     @Operation(summary = "Transfer funds between accounts", 
-               description = "Transfers funds from one account to another")
+               description = "Transfers funds from one account to another. If a referenceId is provided, the operation is idempotent - multiple requests with the same referenceId will only execute the transfer once.")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "Transfer successful"),
-        @ApiResponse(responseCode = "400", description = "Invalid request or insufficient funds"),
+        @ApiResponse(responseCode = "400", description = "Invalid request, insufficient funds, or referenceId conflict"),
         @ApiResponse(responseCode = "404", description = "Account not found")
     })
     public ResponseEntity<Void> transfer(
@@ -100,7 +104,8 @@ public class WalletController {
         transactionService.transfer(
                 transferRequest.fromAccountId(),
                 transferRequest.toAccountId(),
-                transferRequest.amount()
+                transferRequest.amount(),
+                transferRequest.referenceId()
         );
         return ResponseEntity.ok().build();
     }
@@ -127,5 +132,26 @@ public class WalletController {
         // If we get here, the account exists, so fetch transactions
         List<Transaction> transactions = transactionService.getAccountTransactions(id);
         return ResponseEntity.ok(transactions);
+    }
+
+    /**
+     * Gets a transaction by its reference ID.
+     *
+     * @param referenceId the reference ID to look up
+     * @return the transaction with the specified reference ID, or 404 if not found
+     */
+    @GetMapping("/transactions/reference/{referenceId}")
+    @Operation(summary = "Get transaction by reference ID", 
+               description = "Retrieves a transaction by its reference ID, useful for idempotency verification")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Transaction found",
+                     content = @Content(schema = @Schema(implementation = Transaction.class))),
+        @ApiResponse(responseCode = "404", description = "Transaction not found")
+    })
+    public ResponseEntity<Transaction> getTransactionByReference(
+            @Parameter(description = "Reference ID of the transaction") @PathVariable String referenceId) {
+        return transactionRepository.findByReference(referenceId)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
     }
 } 

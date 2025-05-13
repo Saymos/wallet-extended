@@ -1,6 +1,7 @@
 package com.cubeia.wallet.repository;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -24,4 +25,20 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
      */
     @Query("SELECT t FROM Transaction t WHERE t.fromAccountId = :accountId OR t.toAccountId = :accountId ORDER BY t.timestamp DESC")
     List<Transaction> findByAccountId(@Param("accountId") UUID accountId);
+    
+    /**
+     * Find a transaction by its reference ID.
+     * 
+     * @param reference The reference ID to search for
+     * @return Optional containing the transaction if found, or empty if not found
+     */
+    Optional<Transaction> findByReference(String reference);
+    
+    /**
+     * Find all transactions with a specific reference ID.
+     * 
+     * @param reference The reference ID to search for
+     * @return List of transactions with the specified reference ID
+     */
+    List<Transaction> findAllByReference(String reference);
 } 

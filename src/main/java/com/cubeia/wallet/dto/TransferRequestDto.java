@@ -24,5 +24,10 @@ public record TransferRequestDto(
     @NotNull(message = "Transfer amount is required")
     @Positive(message = "Transfer amount must be positive")
     @Schema(description = "Amount to transfer", example = "100.00")
-    BigDecimal amount
+    BigDecimal amount,
+    
+    @Schema(description = "Optional reference ID for idempotent requests", 
+           example = "payment-123456", 
+           nullable = true)
+    String referenceId
 ) {} 

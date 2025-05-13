@@ -2,6 +2,7 @@ package com.cubeia.wallet.service;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
@@ -45,6 +46,49 @@ public class TransactionService {
      */
     @Transactional
     public Transaction transfer(UUID fromAccountId, UUID toAccountId, BigDecimal amount) {
+        return transfer(fromAccountId, toAccountId, amount, null);
+    }
+
+    /**
+     * Transfers funds between accounts with deadlock prevention and idempotency support.
+     * 
+     * If a transaction with the given reference ID already exists, it returns that transaction
+     * instead of creating a new one, ensuring idempotency for duplicate requests.
+     * 
+     * Accounts are always locked in a consistent order (by comparing IDs) to prevent deadlocks.
+     * See README for a detailed explanation of the deadlock prevention strategy.
+     * 
+     * @param fromAccountId The ID of the account to transfer from
+     * @param toAccountId The ID of the account to transfer to
+     * @param amount The amount to transfer
+     * @param referenceId Optional reference ID for idempotency (can be null)
+     * @return The created or existing Transaction record
+     * @throws AccountNotFoundException if either account is not found
+     * @throws InsufficientFundsException if the from account has insufficient funds
+     * @throws IllegalArgumentException if a transaction with the same reference ID exists with different parameters
+     */
+    @Transactional
+    public Transaction transfer(UUID fromAccountId, UUID toAccountId, BigDecimal amount, String referenceId) {
+        // Check for existing transaction with the same reference ID
+        if (referenceId != null && !referenceId.isEmpty()) {
+            Optional<Transaction> existingTransaction = transactionRepository.findByReference(referenceId);
+            if (existingTransaction.isPresent()) {
+                Transaction existing = existingTransaction.get();
+                
+                // Verify that transaction parameters match
+                if (!existing.getFromAccountId().equals(fromAccountId) ||
+                    !existing.getToAccountId().equals(toAccountId) ||
+                    existing.getAmount().compareTo(amount) != 0) {
+                    throw new IllegalArgumentException(
+                        "Transaction with reference ID '" + referenceId + "' already exists with different parameters"
+                    );
+                }
+                
+                // Return the existing transaction for idempotency
+                return existing;
+            }
+        }
+        
         // Always acquire locks in the same order to prevent deadlocks
         Account fromAccount;
         Account toAccount;
@@ -91,7 +135,8 @@ public class TransactionService {
             toAccountId, 
             amount, 
             TransactionType.TRANSFER, 
-            currency
+            currency,
+            referenceId
         );
         
         // Execute the transaction (update balances)

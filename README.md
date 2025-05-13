@@ -83,8 +83,19 @@ curl -X POST http://localhost:8080/transfers \
   -d '{
     "fromAccountId": 1,
     "toAccountId": 2,
-    "amount": 100.00
+    "amount": 100.00,
+    "referenceId": "payment-123456"
   }'
+```
+
+The `referenceId` field is optional and enables idempotent transfers - multiple requests with the same `referenceId` will only execute the transfer once.
+
+### Get Transaction by Reference ID
+
+Retrieves a transaction by its reference ID.
+
+```bash
+curl -X GET http://localhost:8080/transactions/reference/{referenceId}
 ```
 
 ### Get Account Transactions
@@ -98,9 +109,35 @@ curl -X GET http://localhost:8080/accounts/{accountId}/transactions
 ## Implementation Notes
 
 - Pessimistic locking is used to ensure thread safety during concurrent transfers
+- Idempotent transfers are supported via reference IDs to safely retry operations
 - Comprehensive validation and error handling for API requests
 - Detailed error responses with appropriate HTTP status codes
-- Full test suite including unit tests and integration tests with concurrency testing 
+- Full test suite including unit tests and integration tests with concurrency testing
+
+### Idempotency Support
+
+The wallet application implements idempotency for transfer operations:
+
+1. **How it works**:
+   - Clients can include an optional `referenceId` in transfer requests
+   - If a transfer with the same `referenceId` is already processed, the system returns the existing transaction without executing a new transfer
+   - This ensures that retried or duplicate requests don't result in multiple transfers
+
+2. **Benefits**:
+   - Safely retry failed network requests without risking duplicate transfers
+   - Protect against accidental duplicate submissions
+   - Ensure exactly-once semantics in distributed systems
+
+3. **Implementation details**:
+   - The `Transaction` model includes a `reference` field
+   - The `TransactionRepository` provides methods to find transactions by reference ID
+   - `TransactionService` checks for existing transactions with the same reference ID before processing
+   - Duplicate requests with matching parameters return the existing transaction
+   - Requests with the same reference ID but different parameters receive an error
+
+4. **Verification**:
+   - Idempotency is thoroughly tested in `TransactionIdempotencyTest` and `WalletControllerIdempotencyTest`
+   - Tests verify that duplicate requests don't create duplicate transactions or affect balances multiple times
 
 ### Deadlock Prevention Strategy
 

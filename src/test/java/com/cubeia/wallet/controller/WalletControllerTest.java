@@ -70,21 +70,19 @@ public class WalletControllerTest {
     @Test
     public void getBalance_ShouldReturnCorrectBalance() {
         // given
-        ResponseEntity<Account> createResponse = restTemplate.postForEntity(
-                getBaseUrl() + "/accounts",
-                null,
-                Account.class);
-        Long accountId = createResponse.getBody().getId();
+        Account account = createAccountWithBalance(new BigDecimal("100.00"));
 
         // when
-        ResponseEntity<BigDecimal> response = restTemplate.getForEntity(
+        ResponseEntity<Map> response = restTemplate.getForEntity(
                 getBaseUrl() + "/accounts/{id}/balance",
-                BigDecimal.class,
-                accountId);
+                Map.class,
+                account.getId());
 
         // then
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(response.getBody().compareTo(BigDecimal.ZERO)).isEqualTo(0);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(new BigDecimal(response.getBody().get("balance").toString()))
+            .isEqualByComparingTo(new BigDecimal("100.00"));
     }
 
     @Test
@@ -104,10 +102,11 @@ public class WalletControllerTest {
         Account fromAccount = createAccountWithBalance(new BigDecimal("500.00"));
         Account toAccount = createAccountWithBalance(BigDecimal.ZERO);
 
-        TransferRequestDto transferRequest = new TransferRequestDto();
-        transferRequest.setFromAccountId(fromAccount.getId());
-        transferRequest.setToAccountId(toAccount.getId());
-        transferRequest.setAmount(new BigDecimal("100.00"));
+        TransferRequestDto transferRequest = new TransferRequestDto(
+            fromAccount.getId(),
+            toAccount.getId(),
+            new BigDecimal("100.00")
+        );
 
         // when
         ResponseEntity<Void> response = restTemplate.postForEntity(
@@ -132,10 +131,11 @@ public class WalletControllerTest {
         Account fromAccount = createAccountWithBalance(new BigDecimal("50.00"));
         Account toAccount = createAccountWithBalance(BigDecimal.ZERO);
 
-        TransferRequestDto transferRequest = new TransferRequestDto();
-        transferRequest.setFromAccountId(fromAccount.getId());
-        transferRequest.setToAccountId(toAccount.getId());
-        transferRequest.setAmount(new BigDecimal("100.00"));
+        TransferRequestDto transferRequest = new TransferRequestDto(
+            fromAccount.getId(),
+            toAccount.getId(),
+            new BigDecimal("100.00")
+        );
 
         // when
         ResponseEntity<Map> response = restTemplate.postForEntity(
@@ -160,10 +160,11 @@ public class WalletControllerTest {
         // given
         Account toAccount = createAccountWithBalance(BigDecimal.ZERO);
 
-        TransferRequestDto transferRequest = new TransferRequestDto();
-        transferRequest.setFromAccountId(999L);
-        transferRequest.setToAccountId(toAccount.getId());
-        transferRequest.setAmount(new BigDecimal("100.00"));
+        TransferRequestDto transferRequest = new TransferRequestDto(
+            999L,
+            toAccount.getId(),
+            new BigDecimal("100.00")
+        );
 
         // when
         ResponseEntity<Map> response = restTemplate.postForEntity(
@@ -182,10 +183,11 @@ public class WalletControllerTest {
         Account fromAccount = createAccountWithBalance(new BigDecimal("100.00"));
         Account toAccount = createAccountWithBalance(BigDecimal.ZERO);
 
-        TransferRequestDto transferRequest = new TransferRequestDto();
-        transferRequest.setFromAccountId(fromAccount.getId());
-        transferRequest.setToAccountId(toAccount.getId());
-        transferRequest.setAmount(new BigDecimal("-50.00"));
+        TransferRequestDto transferRequest = new TransferRequestDto(
+            fromAccount.getId(),
+            toAccount.getId(),
+            new BigDecimal("-50.00")
+        );
 
         // when
         ResponseEntity<Map> response = restTemplate.postForEntity(
@@ -205,10 +207,11 @@ public class WalletControllerTest {
         Account toAccount = createAccountWithBalance(BigDecimal.ZERO);
 
         // Perform a transfer to create a transaction
-        TransferRequestDto transferRequest = new TransferRequestDto();
-        transferRequest.setFromAccountId(fromAccount.getId());
-        transferRequest.setToAccountId(toAccount.getId());
-        transferRequest.setAmount(new BigDecimal("100.00"));
+        TransferRequestDto transferRequest = new TransferRequestDto(
+            fromAccount.getId(),
+            toAccount.getId(),
+            new BigDecimal("100.00")
+        );
 
         restTemplate.postForEntity(
                 getBaseUrl() + "/transfers",
@@ -260,10 +263,11 @@ public class WalletControllerTest {
         final CountDownLatch startLatch = new CountDownLatch(1);
         final CountDownLatch endLatch = new CountDownLatch(numOfThreads);
 
-        TransferRequestDto transferRequest = new TransferRequestDto();
-        transferRequest.setFromAccountId(fromAccount.getId());
-        transferRequest.setToAccountId(toAccount.getId());
-        transferRequest.setAmount(new BigDecimal("100.00"));
+        TransferRequestDto transferRequest = new TransferRequestDto(
+            fromAccount.getId(),
+            toAccount.getId(),
+            new BigDecimal("100.00")
+        );
 
         // when - execute transfers concurrently
         for (int i = 0; i < numOfThreads; i++) {
@@ -310,15 +314,22 @@ public class WalletControllerTest {
             // If we need a non-zero balance, we'll create a second account and transfer from it
             Account fundingAccount = createAccountWithZeroBalance();
             
-            // Update the funding account balance directly in the database
-            fundingAccount.setBalance(initialBalance);
-            accountRepository.save(fundingAccount);
+            // Update the funding account balance directly in the database using reflection
+            try {
+                java.lang.reflect.Field balanceField = Account.class.getDeclaredField("balance");
+                balanceField.setAccessible(true);
+                balanceField.set(fundingAccount, initialBalance);
+                accountRepository.save(fundingAccount);
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to set balance using reflection", e);
+            }
             
             // Transfer from funding account to our target account
-            TransferRequestDto transferRequest = new TransferRequestDto();
-            transferRequest.setFromAccountId(fundingAccount.getId());
-            transferRequest.setToAccountId(createResponse.getBody().getId());
-            transferRequest.setAmount(initialBalance);
+            TransferRequestDto transferRequest = new TransferRequestDto(
+                fundingAccount.getId(),
+                createResponse.getBody().getId(),
+                initialBalance
+            );
             
             restTemplate.postForEntity(
                     getBaseUrl() + "/transfers",
@@ -338,10 +349,10 @@ public class WalletControllerTest {
     }
 
     private BigDecimal getAccountBalance(Long accountId) {
-        ResponseEntity<BigDecimal> response = restTemplate.getForEntity(
+        ResponseEntity<Map> response = restTemplate.getForEntity(
                 getBaseUrl() + "/accounts/{id}/balance",
-                BigDecimal.class,
+                Map.class,
                 accountId);
-        return response.getBody();
+        return new BigDecimal(response.getBody().get("balance").toString());
     }
 } 

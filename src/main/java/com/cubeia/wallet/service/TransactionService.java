@@ -55,8 +55,17 @@ public class TransactionService {
         
         // Check for currency match
         if (fromAccount.getCurrency() != toAccount.getCurrency()) {
-            throw new IllegalArgumentException(
-                "Currency mismatch: Cannot transfer between accounts with different currencies");
+            throw new IllegalArgumentException("""
+                Currency mismatch: Cannot transfer between accounts with different currencies
+                From account currency: %s
+                To account currency: %s
+                """.formatted(fromAccount.getCurrency(), toAccount.getCurrency()));
+        }
+
+        // Check withdrawal limits based on account type using the new method
+        if (amount.compareTo(fromAccount.getMaxWithdrawalAmount()) > 0) {
+            throw new InsufficientFundsException(fromAccountId, 
+                "Exceeds withdrawal limit for account type: " + fromAccount.getAccountType().name());
         }
 
         // Create the transaction object
@@ -72,8 +81,9 @@ public class TransactionService {
         // Execute the transaction (update balances)
         try {
             transaction.execute(transaction, fromAccount, toAccount);
-        } catch (IllegalArgumentException e) {
-            if (e.getMessage().contains("Insufficient funds")) {
+        } catch (Exception e) {
+            // Using pattern matching to handle exceptions
+            if (e instanceof IllegalArgumentException ex && ex.getMessage().contains("Insufficient funds")) {
                 throw new InsufficientFundsException(fromAccountId, amount.toString());
             }
             throw e;

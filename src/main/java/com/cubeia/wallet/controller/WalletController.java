@@ -2,6 +2,7 @@ package com.cubeia.wallet.controller;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -11,6 +12,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.cubeia.wallet.dto.BalanceResponseDto;
 import com.cubeia.wallet.dto.TransferRequestDto;
 import com.cubeia.wallet.model.Account;
 import com.cubeia.wallet.model.Transaction;
@@ -69,13 +71,14 @@ public class WalletController {
                description = "Retrieves the current balance of an account")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "Balance retrieved successfully",
-                     content = @Content(schema = @Schema(implementation = BigDecimal.class))),
+                     content = @Content(schema = @Schema(implementation = BalanceResponseDto.class))),
         @ApiResponse(responseCode = "404", description = "Account not found")
     })
-    public ResponseEntity<BigDecimal> getBalance(
+    public ResponseEntity<BalanceResponseDto> getBalance(
             @Parameter(description = "ID of the account") @PathVariable Long id) {
         BigDecimal balance = accountService.getBalance(id);
-        return ResponseEntity.ok(balance);
+        BalanceResponseDto response = new BalanceResponseDto(balance);
+        return ResponseEntity.ok(response);
     }
 
     /**
@@ -95,9 +98,9 @@ public class WalletController {
     public ResponseEntity<Void> transfer(
             @Valid @RequestBody TransferRequestDto transferRequest) {
         transactionService.transfer(
-                transferRequest.getFromAccountId(),
-                transferRequest.getToAccountId(),
-                transferRequest.getAmount()
+                transferRequest.fromAccountId(),
+                transferRequest.toAccountId(),
+                transferRequest.amount()
         );
         return ResponseEntity.ok().build();
     }

@@ -49,7 +49,7 @@ public class AccountServiceTest {
     @Test
     void createAccount_ShouldCreateAccountWithZeroBalanceAndDefaultCurrency() {
         // Arrange
-        Account mockAccount = new Account(Currency.EUR, AccountType.MAIN);
+        Account mockAccount = new Account(Currency.EUR, AccountType.MainAccount.getInstance());
         setAccountId(mockAccount, 1L);
         
         when(accountRepository.save(any(Account.class))).thenReturn(mockAccount);
@@ -62,7 +62,7 @@ public class AccountServiceTest {
         assertEquals(1L, result.getId());
         assertEquals(BigDecimal.ZERO, result.getBalance());
         assertEquals(Currency.EUR, result.getCurrency());
-        assertEquals(AccountType.MAIN, result.getAccountType());
+        assertEquals(AccountType.MainAccount.getInstance(), result.getAccountType());
         verify(accountRepository, times(1)).save(any(Account.class));
     }
     
@@ -70,7 +70,7 @@ public class AccountServiceTest {
     void createAccount_ShouldCreateAccountWithSpecificCurrencyAndType() {
         // Arrange
         Currency currency = Currency.USD;
-        AccountType accountType = AccountType.BONUS;
+        AccountType accountType = AccountType.BonusAccount.getInstance();
         
         // Setup a return value for the repository mock
         Account mockAccount = new Account(currency, accountType);
@@ -104,7 +104,7 @@ public class AccountServiceTest {
         Long accountId = 1L;
         BigDecimal expectedBalance = BigDecimal.valueOf(100.0);
         
-        Account account = new Account(Currency.EUR, AccountType.MAIN);
+        Account account = new Account(Currency.EUR, AccountType.MainAccount.getInstance());
         setAccountId(account, accountId);
         
         // Set balance using reflection
@@ -144,7 +144,7 @@ public class AccountServiceTest {
         // Arrange
         Long accountId = 1L;
         Currency expectedCurrency = Currency.CHF;
-        AccountType expectedAccountType = AccountType.JACKPOT;
+        AccountType expectedAccountType = AccountType.JackpotAccount.getInstance();
         
         Account account = new Account(expectedCurrency, expectedAccountType);
         setAccountId(account, accountId);

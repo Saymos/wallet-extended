@@ -28,8 +28,8 @@ public class AccountService {
      * @return the created account
      */
     public Account createAccount() {
-        // Using the default constructor will already set default values
-        Account account = new Account(Currency.EUR, AccountType.MAIN);
+        // Create a new account with default values
+        Account account = new Account(Currency.EUR, AccountType.MainAccount.getInstance());
         return accountRepository.save(account);
     }
     

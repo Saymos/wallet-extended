@@ -110,19 +110,31 @@ public class Transaction {
     private void execute(Account fromAccount, Account toAccount) {
         // Verify account IDs match this transaction
         if (!fromAccount.getId().equals(fromAccountId) || !toAccount.getId().equals(toAccountId)) {
-            throw new IllegalArgumentException("Account IDs do not match transaction record");
+            throw new IllegalArgumentException("""
+                Account IDs do not match transaction record:
+                Expected fromAccount ID: %d, Actual: %d
+                Expected toAccount ID: %d, Actual: %d
+                """.formatted(fromAccountId, fromAccount.getId(), toAccountId, toAccount.getId()));
         }
         
-        // Verify currencies match
+        // Verify currencies match using pattern matching
         if (fromAccount.getCurrency() != currency || toAccount.getCurrency() != currency) {
-            throw new IllegalArgumentException(
-                "Currency mismatch: Transaction and accounts must use the same currency");
+            throw new IllegalArgumentException("""
+                Currency mismatch: Transaction and accounts must use the same currency
+                Transaction currency: %s
+                From account currency: %s
+                To account currency: %s
+                """.formatted(currency, fromAccount.getCurrency(), toAccount.getCurrency()));
         }
         
         // Verify sufficient funds
         BigDecimal fromNewBalance = fromAccount.getBalance().subtract(amount);
         if (fromNewBalance.compareTo(BigDecimal.ZERO) < 0) {
-            throw new IllegalArgumentException("Insufficient funds in account: " + fromAccountId);
+            throw new IllegalArgumentException("""
+                Insufficient funds in account: %d
+                Current balance: %s
+                Required amount: %s
+                """.formatted(fromAccountId, fromAccount.getBalance(), amount));
         }
         
         // Execute the transaction
@@ -141,13 +153,17 @@ public class Transaction {
      * @throws IllegalArgumentException if transaction parameter isn't the same as 'this'
      */
     public void execute(Transaction transaction, Account fromAccount, Account toAccount) {
-        // Verify it's the same transaction
-        if (transaction != this) {
+        // Verify it's the same transaction using pattern matching
+        if (!(transaction instanceof Transaction t && t == this)) {
             throw new IllegalArgumentException("Transaction parameter must be the same instance as 'this'");
         }
 
         if (!Objects.equals(fromAccount.getId(), fromAccountId) || !Objects.equals(toAccount.getId(), toAccountId)) {
-            throw new IllegalArgumentException("Account IDs do not match transaction record");
+            throw new IllegalArgumentException("""
+                Account IDs do not match transaction record:
+                Expected fromAccount ID: %d, Actual: %d
+                Expected toAccount ID: %d, Actual: %d
+                """.formatted(fromAccountId, fromAccount.getId(), toAccountId, toAccount.getId()));
         }
         
         // Execute normally

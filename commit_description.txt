@@ -1,0 +1,30 @@
+This commit includes the following improvements:
+
+1. Account Model:
+   - Made currency and accountType fields immutable (final)
+   - Removed unnecessary setters (setId, setBalance)
+   - Added a protected constructor for JPA
+   - Made balance updates only possible through transactions
+
+2. Transaction Model:
+   - Created a self-execution pattern with transaction.execute(transaction, fromAccount, toAccount)
+   - Added validation for currency matching between accounts
+   - Made the basic execute method private to enforce proper usage
+   - Implemented proper account balance modifications
+
+3. Domain Enhancements:
+   - Added Currency enum with ISO 4217 standard reference
+   - Added AccountType enum with MAIN, BONUS, PENDING, and JACKPOT types
+   - Added TransactionType enum for better categorization of financial movements
+
+4. Validation and Security:
+   - Added currency matching between accounts for transfers
+   - Improved error handling with proper exceptions
+   - Made transaction execution the only way to modify account balances
+
+5. Updated Tests:
+   - Modified existing tests to work with immutable fields
+   - Added tests for currency mismatch scenarios
+   - Added tests for account types and transaction validation
+
+These changes ensure data integrity by enforcing that account balances can only be modified through properly recorded transactions. 

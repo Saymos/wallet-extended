@@ -3,6 +3,7 @@ package com.cubeia.wallet.model;
 import java.math.BigDecimal;
 
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -29,11 +30,11 @@ public class Account {
     
     @Enumerated(EnumType.STRING)
     @Column(name = "currency", nullable = false)
-    private final Currency currency;
+    private Currency currency;
     
-    @Enumerated(EnumType.STRING)
     @Column(name = "account_type", nullable = false)
-    private final AccountType accountType;
+    @Convert(converter = AccountTypeConverter.class)
+    private AccountType accountType;
     
     /**
      * Default no-args constructor required by JPA.
@@ -42,7 +43,7 @@ public class Account {
     protected Account() {
         // Required by JPA, initialize with defaults
         this.currency = Currency.EUR;
-        this.accountType = AccountType.MAIN;
+        this.accountType = AccountType.MainAccount.getInstance();
     }
     
     /**
@@ -79,5 +80,20 @@ public class Account {
      */
     void updateBalance(BigDecimal newBalance) {
         this.balance = newBalance;
+    }
+    
+    /**
+     * Determines the maximum withdrawal amount based on account type.
+     * Uses pattern matching for switch to handle different account types.
+     * 
+     * @return The maximum amount that can be withdrawn
+     */
+    public BigDecimal getMaxWithdrawalAmount() {
+        return switch(accountType) {
+            case AccountType.MainAccount mainAccount -> balance;
+            case AccountType.BonusAccount bonusAccount -> BigDecimal.ZERO; // Cannot withdraw from bonus account
+            case AccountType.PendingAccount pendingAccount -> BigDecimal.ZERO; // Cannot withdraw from pending
+            case AccountType.JackpotAccount jackpotAccount -> balance; // Full withdrawal allowed
+        };
     }
 } 

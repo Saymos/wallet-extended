@@ -6,6 +6,7 @@ import java.math.BigDecimal;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
 
 class ModelClassesTest {
@@ -13,25 +14,25 @@ class ModelClassesTest {
     @Test
     void account_DefaultConstructor() {
         // Act - Create with default constructor
-        Account account = new Account(Currency.EUR, AccountType.MAIN);
+        Account account = new Account(Currency.EUR, AccountType.MainAccount.getInstance());
         
         // Assert - Initial state
         assertNotNull(account.getBalance());
         assertEquals(BigDecimal.ZERO, account.getBalance());
         assertEquals(Currency.EUR, account.getCurrency());
-        assertEquals(AccountType.MAIN, account.getAccountType());
+        assertEquals(AccountType.MainAccount.getInstance(), account.getAccountType());
     }
     
     @Test
     void account_ParameterizedConstructor() {
         // Act - Create with parameterized constructor
-        Account account = new Account(Currency.USD, AccountType.BONUS);
+        Account account = new Account(Currency.USD, AccountType.BonusAccount.getInstance());
         
         // Assert - Initial state
         assertNotNull(account.getBalance());
         assertEquals(BigDecimal.ZERO, account.getBalance());
         assertEquals(Currency.USD, account.getCurrency());
-        assertEquals(AccountType.BONUS, account.getAccountType());
+        assertEquals(AccountType.BonusAccount.getInstance(), account.getAccountType());
     }
     
     /**
@@ -63,8 +64,8 @@ class ModelClassesTest {
     @Test
     void transaction_Execute() {
         // Arrange - Create source and destination accounts
-        Account fromAccount = new Account(Currency.EUR, AccountType.MAIN);
-        Account toAccount = new Account(Currency.EUR, AccountType.MAIN);
+        Account fromAccount = new Account(Currency.EUR, AccountType.MainAccount.getInstance());
+        Account toAccount = new Account(Currency.EUR, AccountType.MainAccount.getInstance());
         
         // Set IDs so we can match with the transaction
         setAccountId(fromAccount, 1L);
@@ -94,8 +95,8 @@ class ModelClassesTest {
     @Test
     void transaction_Execute_InsufficientFunds() {
         // Arrange - Create source and destination accounts
-        Account fromAccount = new Account(Currency.EUR, AccountType.MAIN);
-        Account toAccount = new Account(Currency.EUR, AccountType.MAIN);
+        Account fromAccount = new Account(Currency.EUR, AccountType.MainAccount.getInstance());
+        Account toAccount = new Account(Currency.EUR, AccountType.MainAccount.getInstance());
         
         // Set IDs
         setAccountId(fromAccount, 1L);
@@ -115,14 +116,14 @@ class ModelClassesTest {
         IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
             transaction.execute(transaction, fromAccount, toAccount);
         });
-        assertEquals("Insufficient funds in account: 1", exception.getMessage());
+        assertTrue(exception.getMessage().contains("Insufficient funds in account: 1"));
     }
     
     @Test
     void transaction_Execute_CurrencyMismatch() {
         // Arrange - Create accounts with different currencies
-        Account fromAccount = new Account(Currency.EUR, AccountType.MAIN);
-        Account toAccount = new Account(Currency.USD, AccountType.MAIN);
+        Account fromAccount = new Account(Currency.EUR, AccountType.MainAccount.getInstance());
+        Account toAccount = new Account(Currency.USD, AccountType.MainAccount.getInstance());
         
         // Set IDs
         setAccountId(fromAccount, 1L);
@@ -144,7 +145,7 @@ class ModelClassesTest {
         IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
             transaction.execute(transaction, fromAccount, toAccount);
         });
-        assertEquals("Currency mismatch: Transaction and accounts must use the same currency", exception.getMessage());
+        assertTrue(exception.getMessage().contains("Currency mismatch"));
     }
     
     @Test
@@ -182,5 +183,26 @@ class ModelClassesTest {
         assertThrows(IllegalArgumentException.class, () -> {
             new Transaction(fromAccountId, toAccountId, negativeAmount, type, currency);
         });
+    }
+    
+    @Test
+    void accountType_WithdrawalLimits() {
+        // Arrange
+        Account mainAccount = new Account(Currency.EUR, AccountType.MainAccount.getInstance());
+        Account bonusAccount = new Account(Currency.EUR, AccountType.BonusAccount.getInstance());
+        Account pendingAccount = new Account(Currency.EUR, AccountType.PendingAccount.getInstance());
+        Account jackpotAccount = new Account(Currency.EUR, AccountType.JackpotAccount.getInstance());
+        
+        // Set balances for all accounts
+        setAccountBalance(mainAccount, new BigDecimal("100.00"));
+        setAccountBalance(bonusAccount, new BigDecimal("100.00"));
+        setAccountBalance(pendingAccount, new BigDecimal("100.00"));
+        setAccountBalance(jackpotAccount, new BigDecimal("100.00"));
+        
+        // Assert - Check withdrawal limits
+        assertEquals(new BigDecimal("100.00"), mainAccount.getMaxWithdrawalAmount());
+        assertEquals(BigDecimal.ZERO, bonusAccount.getMaxWithdrawalAmount());
+        assertEquals(BigDecimal.ZERO, pendingAccount.getMaxWithdrawalAmount());
+        assertEquals(new BigDecimal("100.00"), jackpotAccount.getMaxWithdrawalAmount());
     }
 } 

@@ -7,9 +7,9 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import org.mockito.InjectMocks;
@@ -75,11 +75,11 @@ public class TransactionServiceTest {
         Long toAccountId = 2L;
         BigDecimal amount = new BigDecimal("100.00");
 
-        Account fromAccount = new Account(Currency.EUR, AccountType.MAIN);
+        Account fromAccount = new Account(Currency.EUR, AccountType.MainAccount.getInstance());
         setAccountId(fromAccount, fromAccountId);
         setAccountBalance(fromAccount, new BigDecimal("200.00"));
 
-        Account toAccount = new Account(Currency.EUR, AccountType.MAIN);
+        Account toAccount = new Account(Currency.EUR, AccountType.MainAccount.getInstance());
         setAccountId(toAccount, toAccountId);
         setAccountBalance(toAccount, new BigDecimal("50.00"));
 
@@ -126,11 +126,11 @@ public class TransactionServiceTest {
         Long toAccountId = 2L;
         BigDecimal amount = new BigDecimal("300.00");
 
-        Account fromAccount = new Account(Currency.EUR, AccountType.MAIN);
+        Account fromAccount = new Account(Currency.EUR, AccountType.MainAccount.getInstance());
         setAccountId(fromAccount, fromAccountId);
         setAccountBalance(fromAccount, new BigDecimal("200.00"));
 
-        Account toAccount = new Account(Currency.EUR, AccountType.MAIN);
+        Account toAccount = new Account(Currency.EUR, AccountType.MainAccount.getInstance());
         setAccountId(toAccount, toAccountId);
         setAccountBalance(toAccount, new BigDecimal("50.00"));
 
@@ -179,7 +179,7 @@ public class TransactionServiceTest {
         Long toAccountId = 2L;
         BigDecimal amount = new BigDecimal("100.00");
 
-        Account fromAccount = new Account(Currency.EUR, AccountType.MAIN);
+        Account fromAccount = new Account(Currency.EUR, AccountType.MainAccount.getInstance());
         setAccountId(fromAccount, fromAccountId);
         setAccountBalance(fromAccount, new BigDecimal("200.00"));
 
@@ -241,11 +241,11 @@ public class TransactionServiceTest {
         Long toAccountId = 2L;
         BigDecimal amount = new BigDecimal("100.00");
 
-        Account fromAccount = new Account(Currency.EUR, AccountType.MAIN);
+        Account fromAccount = new Account(Currency.EUR, AccountType.MainAccount.getInstance());
         setAccountId(fromAccount, fromAccountId);
         setAccountBalance(fromAccount, new BigDecimal("200.00"));
 
-        Account toAccount = new Account(Currency.USD, AccountType.MAIN);
+        Account toAccount = new Account(Currency.USD, AccountType.MainAccount.getInstance());
         setAccountId(toAccount, toAccountId);
         setAccountBalance(toAccount, new BigDecimal("50.00"));
 
@@ -257,7 +257,7 @@ public class TransactionServiceTest {
             transactionService.transfer(fromAccountId, toAccountId, amount);
         });
         
-        assertEquals("Currency mismatch: Cannot transfer between accounts with different currencies", exception.getMessage());
+        assertTrue(exception.getMessage().contains("Currency mismatch"));
 
         // Verify that balances weren't changed
         assertEquals(new BigDecimal("200.00"), fromAccount.getBalance());
@@ -270,26 +270,24 @@ public class TransactionServiceTest {
     }
     
     @Test
-    void transfer_ShouldCreateCorrectTransactionWithCurrencyAndType() {
+    void transfer_ShouldWorkBetweenDifferentAccountTypes() {
         // Arrange
         Long fromAccountId = 1L;
         Long toAccountId = 2L;
         BigDecimal amount = new BigDecimal("100.00");
 
-        Account fromAccount = new Account(Currency.EUR, AccountType.MAIN);
+        Account fromAccount = new Account(Currency.EUR, AccountType.MainAccount.getInstance());
         setAccountId(fromAccount, fromAccountId);
         setAccountBalance(fromAccount, new BigDecimal("200.00"));
 
-        Account toAccount = new Account(Currency.EUR, AccountType.BONUS);
+        Account toAccount = new Account(Currency.EUR, AccountType.BonusAccount.getInstance());
         setAccountId(toAccount, toAccountId);
         setAccountBalance(toAccount, new BigDecimal("50.00"));
 
         when(accountRepository.findByIdWithLock(fromAccountId)).thenReturn(Optional.of(fromAccount));
         when(accountRepository.findByIdWithLock(toAccountId)).thenReturn(Optional.of(toAccount));
         when(accountRepository.save(any(Account.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        
-        ArgumentCaptor<Transaction> transactionCaptor = ArgumentCaptor.forClass(Transaction.class);
-        when(transactionRepository.save(transactionCaptor.capture())).thenAnswer(invocation -> {
+        when(transactionRepository.save(any(Transaction.class))).thenAnswer(invocation -> {
             Transaction savedTransaction = invocation.getArgument(0);
             // Use reflection to set transaction ID
             try {
@@ -310,13 +308,15 @@ public class TransactionServiceTest {
         assertEquals(fromAccountId, result.getFromAccountId());
         assertEquals(toAccountId, result.getToAccountId());
         assertEquals(amount, result.getAmount());
-        
-        // Verify transaction was created with correct currency and type
-        Transaction capturedTransaction = transactionCaptor.getValue();
-        assertEquals(Currency.EUR, capturedTransaction.getCurrency());
-        assertEquals(TransactionType.TRANSFER, capturedTransaction.getTransactionType());
+        assertEquals(Currency.EUR, result.getCurrency());
+        assertEquals(TransactionType.TRANSFER, result.getTransactionType());
 
         assertEquals(new BigDecimal("100.00"), fromAccount.getBalance());
         assertEquals(new BigDecimal("150.00"), toAccount.getBalance());
+
+        verify(accountRepository, times(1)).findByIdWithLock(fromAccountId);
+        verify(accountRepository, times(1)).findByIdWithLock(toAccountId);
+        verify(accountRepository, times(2)).save(any(Account.class));
+        verify(transactionRepository, times(1)).save(any(Transaction.class));
     }
 } 

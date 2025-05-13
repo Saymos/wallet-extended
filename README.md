@@ -102,6 +102,32 @@ curl -X GET http://localhost:8080/accounts/{accountId}/transactions
 - Detailed error responses with appropriate HTTP status codes
 - Full test suite including unit tests and integration tests with concurrency testing 
 
+### Deadlock Prevention Strategy
+
+The wallet application employs a robust deadlock prevention mechanism to ensure thread safety during concurrent transfers. The strategy is implemented in the `TransactionService`:
+
+1. **Consistent Lock Ordering**: Accounts are always locked in a consistent order based on their IDs, regardless of whether they are the source or destination account.
+
+2. **Implementation Details**:
+   - When transferring between accounts, the system compares their IDs
+   - If `fromAccountId <= toAccountId`, locks are acquired in the natural order (from → to)
+   - If `fromAccountId > toAccountId`, locks are acquired in the reversed order (to → first)
+   - This ensures that multiple concurrent transfers involving the same accounts always acquire locks in the same order
+
+3. **Why It Works**:
+   - In financial systems, deadlocks typically occur when two concurrent operations try to lock the same resources in different orders
+   - Example potential deadlock scenario:
+     * Thread 1: Transfer A → B (would naturally lock A first, then B)
+     * Thread 2: Transfer B → A (would naturally lock B first, then A)
+   - By enforcing consistent lock ordering based on account ID comparison, this deadlocking scenario is prevented
+
+4. **Verification**:
+   - The deadlock prevention mechanism is thoroughly tested in `DeadlockPreventionTest`
+   - This test creates concurrent transfers in opposite directions between the same accounts
+   - It verifies that all transfers complete successfully without deadlocking
+
+This approach ensures transaction consistency and correctness while maintaining high throughput for concurrent operations.
+
 ## Test Coverage and Strategy
 
 The wallet application maintains high test coverage (94%) to ensure reliability and robustness. The test approach includes:

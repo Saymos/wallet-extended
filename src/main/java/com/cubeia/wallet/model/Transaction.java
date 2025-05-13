@@ -28,24 +28,24 @@ public class Transaction {
     private Long id;
 
     @Column(name = "from_account_id", nullable = false)
-    private Long fromAccountId;
+    private final Long fromAccountId;
 
     @Column(name = "to_account_id", nullable = false)
-    private Long toAccountId;
+    private final Long toAccountId;
 
     @Column(precision = 19, scale = 4, nullable = false)
-    private BigDecimal amount;
+    private final BigDecimal amount;
     
     @Enumerated(EnumType.STRING)
     @Column(name = "transaction_type", nullable = false)
-    private TransactionType transactionType;
+    private final TransactionType transactionType;
     
     @Enumerated(EnumType.STRING)
     @Column(name = "currency", nullable = false)
-    private Currency currency;
+    private final Currency currency;
     
     @Column(name = "reference", length = 255)
-    private String reference;
+    private final String reference;
 
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
@@ -57,6 +57,12 @@ public class Transaction {
      */
     protected Transaction() {
         // Required by JPA
+        this.fromAccountId = null;
+        this.toAccountId = null;
+        this.amount = null;
+        this.transactionType = null;
+        this.currency = null;
+        this.reference = null;
     }
     
     /**

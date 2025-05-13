@@ -30,11 +30,11 @@ public class Account {
     
     @Enumerated(EnumType.STRING)
     @Column(name = "currency", nullable = false)
-    private Currency currency;
+    private final Currency currency;
     
     @Column(name = "account_type", nullable = false)
     @Convert(converter = AccountTypeConverter.class)
-    private AccountType accountType;
+    private final AccountType accountType;
     
     /**
      * Default no-args constructor required by JPA.

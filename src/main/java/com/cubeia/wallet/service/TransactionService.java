@@ -9,7 +9,9 @@ import org.springframework.transaction.annotation.Transactional;
 import com.cubeia.wallet.exception.AccountNotFoundException;
 import com.cubeia.wallet.exception.InsufficientFundsException;
 import com.cubeia.wallet.model.Account;
+import com.cubeia.wallet.model.Currency;
 import com.cubeia.wallet.model.Transaction;
+import com.cubeia.wallet.model.TransactionType;
 import com.cubeia.wallet.repository.AccountRepository;
 import com.cubeia.wallet.repository.TransactionRepository;
 
@@ -50,26 +52,38 @@ public class TransactionService {
         
         Account toAccount = accountRepository.findByIdWithLock(toAccountId)
                 .orElseThrow(() -> new AccountNotFoundException(toAccountId));
-
-        // Check if sender has sufficient funds
-        if (fromAccount.getBalance().compareTo(amount) < 0) {
-            throw new InsufficientFundsException(fromAccountId, amount.toString());
+        
+        // Check for currency match
+        if (fromAccount.getCurrency() != toAccount.getCurrency()) {
+            throw new IllegalArgumentException(
+                "Currency mismatch: Cannot transfer between accounts with different currencies");
         }
 
-        // Update balances
-        fromAccount.setBalance(fromAccount.getBalance().subtract(amount));
-        toAccount.setBalance(toAccount.getBalance().add(amount));
+        // Create the transaction object
+        Currency currency = fromAccount.getCurrency();
+        Transaction transaction = new Transaction(
+            fromAccountId, 
+            toAccountId, 
+            amount, 
+            TransactionType.TRANSFER, 
+            currency
+        );
+
+        // Execute the transaction (update balances)
+        try {
+            transaction.execute(transaction, fromAccount, toAccount);
+        } catch (IllegalArgumentException e) {
+            if (e.getMessage().contains("Insufficient funds")) {
+                throw new InsufficientFundsException(fromAccountId, amount.toString());
+            }
+            throw e;
+        }
 
         // Save updated accounts
         accountRepository.save(fromAccount);
         accountRepository.save(toAccount);
 
-        // Create and save transaction record
-        Transaction transaction = new Transaction();
-        transaction.setFromAccountId(fromAccountId);
-        transaction.setToAccountId(toAccountId);
-        transaction.setAmount(amount);
-
+        // Save and return the transaction record
         return transactionRepository.save(transaction);
     }
 

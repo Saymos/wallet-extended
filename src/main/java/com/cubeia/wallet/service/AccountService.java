@@ -6,6 +6,8 @@ import org.springframework.stereotype.Service;
 
 import com.cubeia.wallet.exception.AccountNotFoundException;
 import com.cubeia.wallet.model.Account;
+import com.cubeia.wallet.model.AccountType;
+import com.cubeia.wallet.model.Currency;
 import com.cubeia.wallet.repository.AccountRepository;
 
 /**
@@ -21,14 +23,25 @@ public class AccountService {
     }
 
     /**
-     * Creates a new account with zero balance.
+     * Creates a new account with default currency (EUR) and type (MAIN).
      *
      * @return the created account
      */
     public Account createAccount() {
-        Account account = new Account();
-        account.setBalance(BigDecimal.ZERO);
-        
+        // Using the default constructor will already set default values
+        Account account = new Account(Currency.EUR, AccountType.MAIN);
+        return accountRepository.save(account);
+    }
+    
+    /**
+     * Creates a new account with the specified currency and type.
+     *
+     * @param currency the currency for the account
+     * @param accountType the type of account
+     * @return the created account
+     */
+    public Account createAccount(Currency currency, AccountType accountType) {
+        Account account = new Account(currency, accountType);
         return accountRepository.save(account);
     }
 
@@ -44,5 +57,17 @@ public class AccountService {
                 .orElseThrow(() -> new AccountNotFoundException(accountId));
         
         return account.getBalance();
+    }
+    
+    /**
+     * Gets an account by its ID.
+     *
+     * @param accountId the ID of the account
+     * @return the account
+     * @throws AccountNotFoundException if the account is not found
+     */
+    public Account getAccount(Long accountId) {
+        return accountRepository.findById(accountId)
+                .orElseThrow(() -> new AccountNotFoundException(accountId));
     }
 } 

@@ -2,6 +2,7 @@ package com.cubeia.wallet.model;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Objects;
 
 import org.hibernate.annotations.CreationTimestamp;
 
@@ -16,6 +17,7 @@ import jakarta.persistence.Table;
 
 /**
  * Entity representing a transaction between accounts.
+ * This is an immutable record of a financial transaction.
  */
 @Entity
 @Table(name = "transactions")
@@ -36,14 +38,14 @@ public class Transaction {
     
     @Enumerated(EnumType.STRING)
     @Column(name = "transaction_type", nullable = false)
-    private TransactionType transactionType = TransactionType.TRANSFER; // Default
+    private TransactionType transactionType;
     
     @Enumerated(EnumType.STRING)
     @Column(name = "currency", nullable = false)
-    private Currency currency = Currency.EUR; // Default
+    private Currency currency;
     
     @Column(name = "reference", length = 255)
-    private String reference; // Optional reference (e.g., game ID, payment ID)
+    private String reference;
 
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
@@ -51,72 +53,136 @@ public class Transaction {
     
     /**
      * Default constructor.
+     * Required by JPA, but should not be used directly in application code.
      */
-    public Transaction() {
+    protected Transaction() {
         // Required by JPA
+    }
+    
+    /**
+     * Creates a new transaction with the specified details.
+     *
+     * @param fromAccountId The account ID from which funds are transferred
+     * @param toAccountId The account ID to which funds are transferred
+     * @param amount The amount of the transaction
+     * @param transactionType The type of transaction
+     * @param currency The currency of the transaction
+     * @param reference An optional reference for the transaction
+     */
+    public Transaction(Long fromAccountId, Long toAccountId, BigDecimal amount, 
+            TransactionType transactionType, Currency currency, String reference) {
+        
+        if (amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Transaction amount must be positive");
+        }
+        
+        this.fromAccountId = fromAccountId;
+        this.toAccountId = toAccountId;
+        this.amount = amount;
+        this.transactionType = transactionType;
+        this.currency = currency;
+        this.reference = reference;
+    }
+    
+    /**
+     * Creates a new transaction with the specified details.
+     *
+     * @param fromAccountId The account ID from which funds are transferred
+     * @param toAccountId The account ID to which funds are transferred
+     * @param amount The amount of the transaction
+     * @param transactionType The type of transaction
+     * @param currency The currency of the transaction
+     */
+    public Transaction(Long fromAccountId, Long toAccountId, BigDecimal amount, 
+            TransactionType transactionType, Currency currency) {
+        this(fromAccountId, toAccountId, amount, transactionType, currency, null);
+    }
+    
+    /**
+     * Executes this transaction by updating the account balances.
+     * This method can be called with (fromAccount, toAccount) or with (transaction)
+     * to guarantee that the transaction record and actual balance changes remain consistent.
+     *
+     * @param fromAccount The source account 
+     * @param toAccount The destination account
+     * @throws IllegalArgumentException if the transaction can't be executed
+     */
+    private void execute(Account fromAccount, Account toAccount) {
+        // Verify account IDs match this transaction
+        if (!fromAccount.getId().equals(fromAccountId) || !toAccount.getId().equals(toAccountId)) {
+            throw new IllegalArgumentException("Account IDs do not match transaction record");
+        }
+        
+        // Verify currencies match
+        if (fromAccount.getCurrency() != currency || toAccount.getCurrency() != currency) {
+            throw new IllegalArgumentException(
+                "Currency mismatch: Transaction and accounts must use the same currency");
+        }
+        
+        // Verify sufficient funds
+        BigDecimal fromNewBalance = fromAccount.getBalance().subtract(amount);
+        if (fromNewBalance.compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalArgumentException("Insufficient funds in account: " + fromAccountId);
+        }
+        
+        // Execute the transaction
+        fromAccount.updateBalance(fromNewBalance);
+        toAccount.updateBalance(toAccount.getBalance().add(amount));
+    }
+    
+    /**
+     * Self-executes this transaction.
+     * This method exists to support clear, intentional code like transaction.execute(transaction),
+     * which makes it obvious that the transaction object being executed matches the record being saved.
+     * 
+     * @param transaction This transaction instance (should be the same as 'this')
+     * @param fromAccount The source account
+     * @param toAccount The destination account
+     * @throws IllegalArgumentException if transaction parameter isn't the same as 'this'
+     */
+    public void execute(Transaction transaction, Account fromAccount, Account toAccount) {
+        // Verify it's the same transaction
+        if (transaction != this) {
+            throw new IllegalArgumentException("Transaction parameter must be the same instance as 'this'");
+        }
+
+        if (!Objects.equals(fromAccount.getId(), fromAccountId) || !Objects.equals(toAccount.getId(), toAccountId)) {
+            throw new IllegalArgumentException("Account IDs do not match transaction record");
+        }
+        
+        // Execute normally
+        execute(fromAccount, toAccount);
     }
     
     public Long getId() {
         return id;
     }
     
-    public void setId(Long id) {
-        this.id = id;
-    }
-    
     public Long getFromAccountId() {
         return fromAccountId;
-    }
-    
-    public void setFromAccountId(Long fromAccountId) {
-        this.fromAccountId = fromAccountId;
     }
     
     public Long getToAccountId() {
         return toAccountId;
     }
     
-    public void setToAccountId(Long toAccountId) {
-        this.toAccountId = toAccountId;
-    }
-    
     public BigDecimal getAmount() {
         return amount;
-    }
-    
-    public void setAmount(BigDecimal amount) {
-        this.amount = amount;
     }
     
     public TransactionType getTransactionType() {
         return transactionType;
     }
     
-    public void setTransactionType(TransactionType transactionType) {
-        this.transactionType = transactionType;
-    }
-    
     public Currency getCurrency() {
         return currency;
-    }
-    
-    public void setCurrency(Currency currency) {
-        this.currency = currency;
     }
     
     public String getReference() {
         return reference;
     }
     
-    public void setReference(String reference) {
-        this.reference = reference;
-    }
-    
     public LocalDateTime getTimestamp() {
         return timestamp;
-    }
-    
-    public void setTimestamp(LocalDateTime timestamp) {
-        this.timestamp = timestamp;
     }
 } 

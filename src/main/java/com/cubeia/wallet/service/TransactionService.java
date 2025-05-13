@@ -46,12 +46,30 @@ public class TransactionService {
             throw new IllegalArgumentException("Transfer amount must be positive");
         }
 
-        // Fetch accounts with pessimistic locking to prevent race conditions
-        Account fromAccount = accountRepository.findByIdWithLock(fromAccountId)
-                .orElseThrow(() -> new AccountNotFoundException(fromAccountId));
-        
-        Account toAccount = accountRepository.findByIdWithLock(toAccountId)
-                .orElseThrow(() -> new AccountNotFoundException(toAccountId));
+        // To prevent deadlocks, always acquire locks in a consistent order based on account ID
+        Account firstAccount;
+        Account secondAccount;
+        boolean isReversedLockOrder = false;
+
+        // Determine which account ID is lower and should be locked first
+        if (fromAccountId.compareTo(toAccountId) <= 0) {
+            // Regular order: fromAccount has lower or equal ID
+            firstAccount = accountRepository.findByIdWithLock(fromAccountId)
+                    .orElseThrow(() -> new AccountNotFoundException(fromAccountId));
+            secondAccount = accountRepository.findByIdWithLock(toAccountId)
+                    .orElseThrow(() -> new AccountNotFoundException(toAccountId));
+        } else {
+            // Reversed order: toAccount has lower ID
+            isReversedLockOrder = true;
+            firstAccount = accountRepository.findByIdWithLock(toAccountId)
+                    .orElseThrow(() -> new AccountNotFoundException(toAccountId));
+            secondAccount = accountRepository.findByIdWithLock(fromAccountId)
+                    .orElseThrow(() -> new AccountNotFoundException(fromAccountId));
+        }
+
+        // Now map to fromAccount and toAccount based on the actual order we used
+        Account fromAccount = isReversedLockOrder ? secondAccount : firstAccount;
+        Account toAccount = isReversedLockOrder ? firstAccount : secondAccount;
         
         // Check for currency match
         if (fromAccount.getCurrency() != toAccount.getCurrency()) {

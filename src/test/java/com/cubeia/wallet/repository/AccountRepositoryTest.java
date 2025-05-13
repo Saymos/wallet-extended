@@ -5,7 +5,10 @@ import java.math.BigDecimal;
 import java.util.Optional;
 import java.util.UUID;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
@@ -42,10 +45,10 @@ class AccountRepositoryTest {
         Account savedAccount = accountRepository.save(account);
 
         // then
-        assertThat(savedAccount.getId()).isNotNull();
-        assertThat(savedAccount.getBalance()).isEqualByComparingTo(BigDecimal.ZERO);
-        assertThat(savedAccount.getCurrency()).isEqualTo(Currency.EUR);
-        assertThat(savedAccount.getAccountType()).isEqualTo(AccountType.MainAccount.getInstance());
+        assertNotNull(savedAccount.getId());
+        assertEquals(BigDecimal.ZERO, savedAccount.getBalance());
+        assertEquals(Currency.EUR, savedAccount.getCurrency());
+        assertEquals(AccountType.MainAccount.getInstance(), savedAccount.getAccountType());
     }
 
     @Test
@@ -60,11 +63,11 @@ class AccountRepositoryTest {
         Optional<Account> foundAccount = accountRepository.findById(savedAccount.getId());
 
         // then
-        assertThat(foundAccount).isPresent();
-        assertThat(foundAccount.get().getId()).isEqualTo(savedAccount.getId());
-        assertThat(foundAccount.get().getBalance()).isEqualByComparingTo(new BigDecimal("100.0000"));
-        assertThat(foundAccount.get().getCurrency()).isEqualTo(Currency.USD);
-        assertThat(foundAccount.get().getAccountType()).isEqualTo(AccountType.BonusAccount.getInstance());
+        assertTrue(foundAccount.isPresent());
+        assertEquals(savedAccount.getId(), foundAccount.get().getId());
+        assertEquals(new BigDecimal("100.0000"), foundAccount.get().getBalance());
+        assertEquals(Currency.USD, foundAccount.get().getCurrency());
+        assertEquals(AccountType.BonusAccount.getInstance(), foundAccount.get().getAccountType());
     }
 
     @Test
@@ -79,11 +82,11 @@ class AccountRepositoryTest {
         Optional<Account> foundAccount = accountRepository.findByIdWithLock(savedAccount.getId());
 
         // then
-        assertThat(foundAccount).isPresent();
-        assertThat(foundAccount.get().getId()).isEqualTo(savedAccount.getId());
-        assertThat(foundAccount.get().getBalance()).isEqualByComparingTo(new BigDecimal("200.0000"));
-        assertThat(foundAccount.get().getCurrency()).isEqualTo(Currency.GBP);
-        assertThat(foundAccount.get().getAccountType()).isEqualTo(AccountType.PendingAccount.getInstance());
+        assertTrue(foundAccount.isPresent());
+        assertEquals(savedAccount.getId(), foundAccount.get().getId());
+        assertEquals(new BigDecimal("200.0000"), foundAccount.get().getBalance());
+        assertEquals(Currency.GBP, foundAccount.get().getCurrency());
+        assertEquals(AccountType.PendingAccount.getInstance(), foundAccount.get().getAccountType());
     }
 
     @Test
@@ -100,8 +103,8 @@ class AccountRepositoryTest {
 
         // then
         Optional<Account> updatedAccount = accountRepository.findById(savedAccount.getId());
-        assertThat(updatedAccount).isPresent();
-        assertThat(updatedAccount.get().getBalance()).isEqualByComparingTo(new BigDecimal("350.0000"));
+        assertTrue(updatedAccount.isPresent());
+        assertEquals(new BigDecimal("350.0000"), updatedAccount.get().getBalance());
     }
 
     @Test
@@ -110,6 +113,6 @@ class AccountRepositoryTest {
         Optional<Account> nonExistentAccount = accountRepository.findById(UUID.randomUUID());
 
         // then
-        assertThat(nonExistentAccount).isEmpty();
+        assertFalse(nonExistentAccount.isPresent());
     }
 } 

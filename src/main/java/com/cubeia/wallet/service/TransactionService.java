@@ -92,6 +92,13 @@ public class TransactionService {
         try {
             transaction.execute(transaction, fromAccount, toAccount);
         } catch (IllegalArgumentException e) {
+            // Defensive code: This exception handler exists for robustness but should rarely if ever be triggered
+            // in normal operation since:
+            // 1. We've already checked the balance with getMaxWithdrawalAmount()
+            // 2. The account is locked with PESSIMISTIC_WRITE, preventing concurrent modifications
+            // 3. The entire operation is within a @Transactional boundary
+            // However, if somehow an IllegalArgumentException with "Insufficient funds" occurs, 
+            // we convert it to our domain-specific exception
             if (e.getMessage().contains("Insufficient funds")) {
                 throw new InsufficientFundsException(fromAccountId, e.getMessage());
             }

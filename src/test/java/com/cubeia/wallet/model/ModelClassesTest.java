@@ -212,4 +212,99 @@ class ModelClassesTest {
         assertEquals(BigDecimal.ZERO, pendingAccount.getMaxWithdrawalAmount());
         assertEquals(new BigDecimal("100.00"), jackpotAccount.getMaxWithdrawalAmount());
     }
+    
+    @Test
+    void transaction_Execute_WrongTransactionInstance() {
+        // Arrange - Create source and destination accounts
+        Account fromAccount = new Account(Currency.EUR, AccountType.MainAccount.getInstance());
+        Account toAccount = new Account(Currency.EUR, AccountType.MainAccount.getInstance());
+        
+        // Set IDs
+        UUID fromAccountId = UUID.randomUUID();
+        UUID toAccountId = UUID.randomUUID();
+        setAccountId(fromAccount, fromAccountId);
+        setAccountId(toAccount, toAccountId);
+        
+        // Set initial balance
+        setAccountBalance(fromAccount, new BigDecimal("100.00"));
+        
+        // Create two separate transaction instances with the same data
+        Transaction transaction1 = new Transaction(
+            fromAccount.getId(), 
+            toAccount.getId(), 
+            new BigDecimal("50.00"),
+            TransactionType.TRANSFER,
+            Currency.EUR
+        );
+        
+        Transaction transaction2 = new Transaction(
+            fromAccount.getId(), 
+            toAccount.getId(), 
+            new BigDecimal("50.00"),
+            TransactionType.TRANSFER,
+            Currency.EUR
+        );
+        
+        // Act & Assert - Should throw exception when using wrong transaction instance
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
+            transaction1.execute(transaction2, fromAccount, toAccount);
+        });
+        
+        assertTrue(exception.getMessage().contains("Transaction parameter must be the same instance as 'this'"));
+        
+        // Verify balances were not changed
+        assertEquals(new BigDecimal("100.00"), fromAccount.getBalance());
+        assertEquals(BigDecimal.ZERO, toAccount.getBalance());
+    }
+    
+    @Test
+    void transaction_Execute_AccountIdMismatch() {
+        // Arrange - Create accounts
+        Account correctFromAccount = new Account(Currency.EUR, AccountType.MainAccount.getInstance());
+        Account correctToAccount = new Account(Currency.EUR, AccountType.MainAccount.getInstance());
+        Account wrongAccount = new Account(Currency.EUR, AccountType.MainAccount.getInstance());
+        
+        // Set IDs
+        UUID fromAccountId = UUID.randomUUID();
+        UUID toAccountId = UUID.randomUUID();
+        UUID wrongAccountId = UUID.randomUUID();
+        
+        setAccountId(correctFromAccount, fromAccountId);
+        setAccountId(correctToAccount, toAccountId);
+        setAccountId(wrongAccount, wrongAccountId);
+        
+        // Set initial balance
+        setAccountBalance(correctFromAccount, new BigDecimal("100.00"));
+        
+        // Create transaction
+        Transaction transaction = new Transaction(
+            fromAccountId, 
+            toAccountId, 
+            new BigDecimal("50.00"),
+            TransactionType.TRANSFER,
+            Currency.EUR
+        );
+        
+        // Act & Assert - Should throw exception when using wrong fromAccount
+        IllegalArgumentException exception1 = assertThrows(IllegalArgumentException.class, () -> {
+            transaction.execute(transaction, wrongAccount, correctToAccount);
+        });
+        
+        assertTrue(exception1.getMessage().contains("Account IDs do not match transaction record"));
+        
+        // Verify balances were not changed
+        assertEquals(new BigDecimal("100.00"), correctFromAccount.getBalance());
+        assertEquals(BigDecimal.ZERO, correctToAccount.getBalance());
+        
+        // Act & Assert - Should throw exception when using wrong toAccount
+        IllegalArgumentException exception2 = assertThrows(IllegalArgumentException.class, () -> {
+            transaction.execute(transaction, correctFromAccount, wrongAccount);
+        });
+        
+        assertTrue(exception2.getMessage().contains("Account IDs do not match transaction record"));
+        
+        // Verify balances were not changed
+        assertEquals(new BigDecimal("100.00"), correctFromAccount.getBalance());
+        assertEquals(BigDecimal.ZERO, correctToAccount.getBalance());
+    }
 } 

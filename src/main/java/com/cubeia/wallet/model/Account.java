@@ -18,6 +18,9 @@ import jakarta.persistence.Table;
  * Entity representing a wallet account with a balance.
  * The account maintains an immutable currency and type, with a mutable balance
  * that can only be updated through proper transaction mechanisms.
+ * 
+ * Note: H2Dialect is automatically detected by Hibernate and does not need
+ * to be specified explicitly in application.properties.
  */
 @Entity
 @Table(name = "accounts")

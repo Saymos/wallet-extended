@@ -5,7 +5,10 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
@@ -42,14 +45,14 @@ class TransactionRepositoryTest {
         entityManager.flush();
 
         // then
-        assertThat(transaction).isNotNull();
-        assertThat(transaction.getId()).isNotNull();
-        assertThat(transaction.getFromAccountId()).isEqualTo(fromAccountId);
-        assertThat(transaction.getToAccountId()).isEqualTo(toAccountId);
-        assertThat(transaction.getAmount()).isEqualByComparingTo(new BigDecimal("100.0000"));
-        assertThat(transaction.getTransactionType()).isEqualTo(TransactionType.TRANSFER);
-        assertThat(transaction.getCurrency()).isEqualTo(Currency.EUR);
-        assertThat(transaction.getTimestamp()).isNotNull();
+        assertNotNull(transaction);
+        assertNotNull(transaction.getId());
+        assertEquals(fromAccountId, transaction.getFromAccountId());
+        assertEquals(toAccountId, transaction.getToAccountId());
+        assertEquals(new BigDecimal("100.0000"), transaction.getAmount());
+        assertEquals(TransactionType.TRANSFER, transaction.getTransactionType());
+        assertEquals(Currency.EUR, transaction.getCurrency());
+        assertNotNull(transaction.getTimestamp());
     }
 
     @Test
@@ -70,13 +73,13 @@ class TransactionRepositoryTest {
         Optional<Transaction> foundTransaction = transactionRepository.findById(savedTransaction.getId());
 
         // then
-        assertThat(foundTransaction).isPresent();
-        assertThat(foundTransaction.get().getId()).isEqualTo(savedTransaction.getId());
-        assertThat(foundTransaction.get().getFromAccountId()).isEqualTo(fromAccountId);
-        assertThat(foundTransaction.get().getToAccountId()).isEqualTo(toAccountId);
-        assertThat(foundTransaction.get().getAmount()).isEqualByComparingTo(new BigDecimal("200.0000"));
-        assertThat(foundTransaction.get().getTransactionType()).isEqualTo(TransactionType.DEPOSIT);
-        assertThat(foundTransaction.get().getCurrency()).isEqualTo(Currency.USD);
+        assertTrue(foundTransaction.isPresent());
+        assertEquals(savedTransaction.getId(), foundTransaction.get().getId());
+        assertEquals(fromAccountId, foundTransaction.get().getFromAccountId());
+        assertEquals(toAccountId, foundTransaction.get().getToAccountId());
+        assertEquals(new BigDecimal("200.0000"), foundTransaction.get().getAmount());
+        assertEquals(TransactionType.DEPOSIT, foundTransaction.get().getTransactionType());
+        assertEquals(Currency.USD, foundTransaction.get().getCurrency());
     }
 
     @Test
@@ -110,15 +113,23 @@ class TransactionRepositoryTest {
         List<Transaction> accountTransactions = transactionRepository.findByAccountId(account1Id);
 
         // then
-        assertThat(accountTransactions).hasSize(2);
+        assertEquals(2, accountTransactions.size());
         
         // Verify first transaction is in the result (account1 sending to account2)
-        assertThat(accountTransactions).anyMatch(t -> 
-            t.getFromAccountId().equals(account1Id) && t.getToAccountId().equals(account2Id));
+        boolean hasOutgoingTransaction = false;
+        boolean hasIncomingTransaction = false;
         
-        // Verify second transaction is in the result (account3 sending to account1)
-        assertThat(accountTransactions).anyMatch(t -> 
-            t.getFromAccountId().equals(account3Id) && t.getToAccountId().equals(account1Id));
+        for (Transaction t : accountTransactions) {
+            if (t.getFromAccountId().equals(account1Id) && t.getToAccountId().equals(account2Id)) {
+                hasOutgoingTransaction = true;
+            }
+            if (t.getFromAccountId().equals(account3Id) && t.getToAccountId().equals(account1Id)) {
+                hasIncomingTransaction = true;
+            }
+        }
+        
+        assertTrue(hasOutgoingTransaction, "Should contain outgoing transaction");
+        assertTrue(hasIncomingTransaction, "Should contain incoming transaction");
     }
 
     @Test
@@ -127,6 +138,6 @@ class TransactionRepositoryTest {
         List<Transaction> accountTransactions = transactionRepository.findByAccountId(UUID.randomUUID());
 
         // then
-        assertThat(accountTransactions).isEmpty();
+        assertTrue(accountTransactions.isEmpty());
     }
 } 

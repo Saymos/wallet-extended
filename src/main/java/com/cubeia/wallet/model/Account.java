@@ -1,6 +1,9 @@
 package com.cubeia.wallet.model;
 
 import java.math.BigDecimal;
+import java.util.UUID;
+
+import org.hibernate.annotations.GenericGenerator;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Convert;
@@ -8,7 +11,6 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
@@ -22,8 +24,10 @@ import jakarta.persistence.Table;
 public class Account {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @GeneratedValue(generator = "UUID")
+    @GenericGenerator(name = "UUID", strategy = "org.hibernate.id.UUIDGenerator")
+    @Column(name = "id", updatable = false, nullable = false)
+    private UUID id;
 
     @Column(precision = 19, scale = 4, nullable = false)
     private BigDecimal balance = BigDecimal.ZERO; // Initialize with zero
@@ -57,7 +61,7 @@ public class Account {
         this.accountType = accountType;
     }
     
-    public Long getId() {
+    public UUID getId() {
         return id;
     }
     

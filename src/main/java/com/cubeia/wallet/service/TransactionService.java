@@ -2,6 +2,7 @@ package com.cubeia.wallet.service;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.UUID;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,7 +17,7 @@ import com.cubeia.wallet.repository.AccountRepository;
 import com.cubeia.wallet.repository.TransactionRepository;
 
 /**
- * Service for handling transactions between accounts.
+ * Service for managing account transactions.
  */
 @Service
 public class TransactionService {
@@ -30,62 +31,53 @@ public class TransactionService {
     }
 
     /**
-     * Transfers funds from one account to another.
-     *
-     * @param fromAccountId the ID of the sender account
-     * @param toAccountId the ID of the receiver account
-     * @param amount the amount to transfer
-     * @return the created transaction
+     * Transfers funds between accounts using a deadlock prevention strategy.
+     * 
+     * @param fromAccountId The ID of the account to transfer from
+     * @param toAccountId The ID of the account to transfer to
+     * @param amount The amount to transfer
+     * @return The created Transaction record
      * @throws AccountNotFoundException if either account is not found
-     * @throws InsufficientFundsException if the sender has insufficient funds
-     * @throws IllegalArgumentException if the amount is not positive
+     * @throws InsufficientFundsException if the from account has insufficient funds
      */
     @Transactional
-    public Transaction transfer(Long fromAccountId, Long toAccountId, BigDecimal amount) {
-        if (amount.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException("Transfer amount must be positive");
-        }
-
-        // To prevent deadlocks, always acquire locks in a consistent order based on account ID
-        Account firstAccount;
-        Account secondAccount;
+    public Transaction transfer(UUID fromAccountId, UUID toAccountId, BigDecimal amount) {
+        // Always acquire locks in the same order to prevent deadlocks
+        Account fromAccount;
+        Account toAccount;
         boolean isReversedLockOrder = false;
-
-        // Determine which account ID is lower and should be locked first
+        
         if (fromAccountId.compareTo(toAccountId) <= 0) {
             // Regular order: fromAccount has lower or equal ID
-            firstAccount = accountRepository.findByIdWithLock(fromAccountId)
+            fromAccount = accountRepository.findByIdWithLock(fromAccountId)
                     .orElseThrow(() -> new AccountNotFoundException(fromAccountId));
-            secondAccount = accountRepository.findByIdWithLock(toAccountId)
+            toAccount = accountRepository.findByIdWithLock(toAccountId)
                     .orElseThrow(() -> new AccountNotFoundException(toAccountId));
         } else {
             // Reversed order: toAccount has lower ID
             isReversedLockOrder = true;
-            firstAccount = accountRepository.findByIdWithLock(toAccountId)
+            toAccount = accountRepository.findByIdWithLock(toAccountId)
                     .orElseThrow(() -> new AccountNotFoundException(toAccountId));
-            secondAccount = accountRepository.findByIdWithLock(fromAccountId)
+            fromAccount = accountRepository.findByIdWithLock(fromAccountId)
                     .orElseThrow(() -> new AccountNotFoundException(fromAccountId));
         }
-
-        // Now map to fromAccount and toAccount based on the actual order we used
-        Account fromAccount = isReversedLockOrder ? secondAccount : firstAccount;
-        Account toAccount = isReversedLockOrder ? firstAccount : secondAccount;
         
-        // Check for currency match
-        if (fromAccount.getCurrency() != toAccount.getCurrency()) {
-            throw new IllegalArgumentException("""
-                Currency mismatch: Cannot transfer between accounts with different currencies
-                From account currency: %s
-                To account currency: %s
-                """.formatted(fromAccount.getCurrency(), toAccount.getCurrency()));
+        // Check for currency mismatch
+        if (!fromAccount.getCurrency().equals(toAccount.getCurrency())) {
+            throw new IllegalArgumentException(String.format(
+                "Currency mismatch: Cannot transfer between accounts with different currencies (%s and %s)",
+                fromAccount.getCurrency(), toAccount.getCurrency()));
         }
-
-        // Check withdrawal limits based on account type using the new method
-        if (amount.compareTo(fromAccount.getMaxWithdrawalAmount()) > 0) {
-            throw new InsufficientFundsException(fromAccountId, 
-                "Exceeds withdrawal limit for account type: " + fromAccount.getAccountType().name());
+        
+        // Check for sufficient funds
+        BigDecimal maxWithdrawal = fromAccount.getMaxWithdrawalAmount();
+        if (amount.compareTo(maxWithdrawal) > 0) {
+            String reason = String.format(
+                "Amount %s exceeds maximum withdrawal amount %s for account type %s",
+                amount, maxWithdrawal, fromAccount.getAccountType());
+            throw new InsufficientFundsException(fromAccountId, reason);
         }
-
+        
         // Create the transaction object
         Currency currency = fromAccount.getCurrency();
         Transaction transaction = new Transaction(
@@ -95,33 +87,35 @@ public class TransactionService {
             TransactionType.TRANSFER, 
             currency
         );
-
+        
         // Execute the transaction (update balances)
         try {
             transaction.execute(transaction, fromAccount, toAccount);
-        } catch (Exception e) {
-            // Using pattern matching to handle exceptions
-            if (e instanceof IllegalArgumentException ex && ex.getMessage().contains("Insufficient funds")) {
-                throw new InsufficientFundsException(fromAccountId, amount.toString());
+        } catch (IllegalArgumentException e) {
+            if (e.getMessage().contains("Insufficient funds")) {
+                throw new InsufficientFundsException(fromAccountId, e.getMessage());
             }
             throw e;
         }
-
-        // Save updated accounts
+        
+        // Save updated accounts and transaction
         accountRepository.save(fromAccount);
         accountRepository.save(toAccount);
-
-        // Save and return the transaction record
         return transactionRepository.save(transaction);
     }
-
+    
     /**
-     * Gets all transactions for an account (either as sender or receiver).
-     *
-     * @param accountId the account ID
-     * @return list of transactions involving the account
+     * Get transaction history for an account.
+     * 
+     * @param accountId The account ID to get transactions for
+     * @return List of transactions involving the account
      */
-    public List<Transaction> getTransactionsByAccountId(Long accountId) {
+    public List<Transaction> getAccountTransactions(UUID accountId) {
+        // Verify account exists first
+        if (!accountRepository.existsById(accountId)) {
+            throw new AccountNotFoundException(accountId);
+        }
+        
         return transactionRepository.findByAccountId(accountId);
     }
 } 

@@ -2,6 +2,7 @@ package com.cubeia.wallet.exception;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -28,13 +29,13 @@ class GlobalExceptionHandlerTest {
     void setUp() {
         exceptionHandler = new GlobalExceptionHandler();
         webRequest = mock(WebRequest.class);
-        when(webRequest.getDescription(false)).thenReturn("test-request");
     }
 
     @Test
     void handleAccountNotFoundException() {
         // Arrange
-        AccountNotFoundException ex = new AccountNotFoundException(1L);
+        UUID accountId = UUID.randomUUID();
+        AccountNotFoundException ex = new AccountNotFoundException(accountId);
 
         // Act
         ResponseEntity<ErrorResponse> response = exceptionHandler.handleAccountNotFoundException(ex, webRequest);
@@ -43,15 +44,17 @@ class GlobalExceptionHandlerTest {
         assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
         assertNotNull(response.getBody());
         assertEquals(HttpStatus.NOT_FOUND.value(), response.getBody().getStatus());
-        assertEquals("Not Found", response.getBody().getError());
-        assertTrue(response.getBody().getMessage().contains("Account not found with ID: 1"));
-        assertEquals("test-request", response.getBody().getPath());
+        assertTrue(response.getBody().getMessage().contains("Account not found"));
+        assertTrue(response.getBody().getMessage().contains(accountId.toString()));
+        assertNotNull(response.getBody().getTimestamp());
     }
 
     @Test
     void handleInsufficientFundsException() {
         // Arrange
-        InsufficientFundsException ex = new InsufficientFundsException(2L, "100.00");
+        UUID accountId = UUID.randomUUID();
+        String reason = "Balance too low";
+        InsufficientFundsException ex = new InsufficientFundsException(accountId, reason);
 
         // Act
         ResponseEntity<ErrorResponse> response = exceptionHandler.handleInsufficientFundsException(ex, webRequest);
@@ -60,9 +63,8 @@ class GlobalExceptionHandlerTest {
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
         assertNotNull(response.getBody());
         assertEquals(HttpStatus.BAD_REQUEST.value(), response.getBody().getStatus());
-        assertEquals("Bad Request", response.getBody().getError());
-        assertTrue(response.getBody().getMessage().contains("insufficient funds"));
-        assertEquals("test-request", response.getBody().getPath());
+        assertTrue(response.getBody().getMessage().contains("Insufficient funds"));
+        assertNotNull(response.getBody().getTimestamp());
     }
 
     @Test
@@ -73,19 +75,21 @@ class GlobalExceptionHandlerTest {
         when(ex.getBindingResult()).thenReturn(bindingResult);
         
         List<FieldError> fieldErrors = new ArrayList<>();
-        fieldErrors.add(new FieldError("object", "field", "error message"));
+        fieldErrors.add(new FieldError("object", "amount", "must be positive"));
         when(bindingResult.getAllErrors()).thenReturn(new ArrayList<>(fieldErrors));
 
         // Act
-        ResponseEntity<ErrorResponse> response = exceptionHandler.handleValidationExceptions(ex, webRequest);
+        ResponseEntity<ValidationErrorResponse> response = exceptionHandler.handleValidationExceptions(ex);
 
         // Assert
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
         assertNotNull(response.getBody());
         assertEquals(HttpStatus.BAD_REQUEST.value(), response.getBody().getStatus());
-        assertEquals("Validation Error", response.getBody().getError());
-        assertTrue(response.getBody().getMessage().contains("field"));
-        assertEquals("test-request", response.getBody().getPath());
+        assertEquals("Validation failed", response.getBody().getMessage());
+        assertNotNull(response.getBody().getFieldErrors());
+        assertTrue(response.getBody().getFieldErrors().containsKey("amount"));
+        assertEquals("must be positive", response.getBody().getFieldErrors().get("amount"));
+        assertNotNull(response.getBody().getTimestamp());
     }
 
     @Test
@@ -100,9 +104,8 @@ class GlobalExceptionHandlerTest {
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
         assertNotNull(response.getBody());
         assertEquals(HttpStatus.BAD_REQUEST.value(), response.getBody().getStatus());
-        assertEquals("Bad Request", response.getBody().getError());
         assertEquals("Illegal argument", response.getBody().getMessage());
-        assertEquals("test-request", response.getBody().getPath());
+        assertNotNull(response.getBody().getTimestamp());
     }
 
     @Test
@@ -119,10 +122,9 @@ class GlobalExceptionHandlerTest {
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
         assertNotNull(response.getBody());
         assertEquals(HttpStatus.BAD_REQUEST.value(), response.getBody().getStatus());
-        assertEquals("Bad Request", response.getBody().getError());
         assertTrue(response.getBody().getMessage().contains("paramName"));
         assertTrue(response.getBody().getMessage().contains("invalidValue"));
-        assertEquals("test-request", response.getBody().getPath());
+        assertNotNull(response.getBody().getTimestamp());
     }
 
     @Test
@@ -138,25 +140,23 @@ class GlobalExceptionHandlerTest {
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
         assertNotNull(response.getBody());
         assertEquals(HttpStatus.BAD_REQUEST.value(), response.getBody().getStatus());
-        assertEquals("Bad Request", response.getBody().getError());
         assertTrue(response.getBody().getMessage().contains("Malformed JSON"));
-        assertEquals("test-request", response.getBody().getPath());
+        assertNotNull(response.getBody().getTimestamp());
     }
 
     @Test
-    void handleAllExceptions() {
+    void handleGlobalException() {
         // Arrange
         Exception ex = new Exception("Unexpected error");
 
         // Act
-        ResponseEntity<ErrorResponse> response = exceptionHandler.handleAllExceptions(ex, webRequest);
+        ResponseEntity<ErrorResponse> response = exceptionHandler.handleGlobalException(ex, webRequest);
 
         // Assert
         assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
         assertNotNull(response.getBody());
         assertEquals(HttpStatus.INTERNAL_SERVER_ERROR.value(), response.getBody().getStatus());
-        assertEquals("Internal Server Error", response.getBody().getError());
-        assertEquals("Unexpected error", response.getBody().getMessage());
-        assertEquals("test-request", response.getBody().getPath());
+        assertEquals("An unexpected error occurred", response.getBody().getMessage());
+        assertNotNull(response.getBody().getTimestamp());
     }
 } 

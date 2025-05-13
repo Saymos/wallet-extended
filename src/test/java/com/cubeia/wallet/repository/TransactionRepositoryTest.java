@@ -3,6 +3,7 @@ package com.cubeia.wallet.repository;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import org.junit.jupiter.api.Test;
@@ -13,42 +14,57 @@ import com.cubeia.wallet.model.Currency;
 import com.cubeia.wallet.model.Transaction;
 import com.cubeia.wallet.model.TransactionType;
 
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
+
 @DataJpaTest
 class TransactionRepositoryTest {
 
     @Autowired
     private TransactionRepository transactionRepository;
+    
+    @PersistenceContext
+    private EntityManager entityManager;
 
     @Test
     void shouldSaveTransaction() {
         // given
+        UUID fromAccountId = UUID.randomUUID();
+        UUID toAccountId = UUID.randomUUID();
         Transaction transaction = new Transaction(
-            1L, 2L, new BigDecimal("100.0000"), 
+            fromAccountId, toAccountId, new BigDecimal("100.0000"), 
             TransactionType.TRANSFER, Currency.EUR
         );
 
         // when
-        Transaction savedTransaction = transactionRepository.save(transaction);
+        transaction = transactionRepository.save(transaction);
+        // Flush to ensure the entity is persisted
+        entityManager.flush();
 
         // then
-        assertThat(savedTransaction.getId()).isNotNull();
-        assertThat(savedTransaction.getFromAccountId()).isEqualTo(1L);
-        assertThat(savedTransaction.getToAccountId()).isEqualTo(2L);
-        assertThat(savedTransaction.getAmount()).isEqualByComparingTo(new BigDecimal("100.0000"));
-        assertThat(savedTransaction.getTransactionType()).isEqualTo(TransactionType.TRANSFER);
-        assertThat(savedTransaction.getCurrency()).isEqualTo(Currency.EUR);
-        assertThat(savedTransaction.getTimestamp()).isNotNull();
+        assertThat(transaction).isNotNull();
+        assertThat(transaction.getId()).isNotNull();
+        assertThat(transaction.getFromAccountId()).isEqualTo(fromAccountId);
+        assertThat(transaction.getToAccountId()).isEqualTo(toAccountId);
+        assertThat(transaction.getAmount()).isEqualByComparingTo(new BigDecimal("100.0000"));
+        assertThat(transaction.getTransactionType()).isEqualTo(TransactionType.TRANSFER);
+        assertThat(transaction.getCurrency()).isEqualTo(Currency.EUR);
+        assertThat(transaction.getTimestamp()).isNotNull();
     }
 
     @Test
     void shouldFindTransactionById() {
         // given
+        UUID fromAccountId = UUID.randomUUID();
+        UUID toAccountId = UUID.randomUUID();
         Transaction transaction = new Transaction(
-            3L, 4L, new BigDecimal("200.0000"), 
+            fromAccountId, toAccountId, new BigDecimal("200.0000"), 
             TransactionType.DEPOSIT, Currency.USD
         );
         
         Transaction savedTransaction = transactionRepository.save(transaction);
+        entityManager.flush();
+        entityManager.clear();
 
         // when
         Optional<Transaction> foundTransaction = transactionRepository.findById(savedTransaction.getId());
@@ -56,8 +72,8 @@ class TransactionRepositoryTest {
         // then
         assertThat(foundTransaction).isPresent();
         assertThat(foundTransaction.get().getId()).isEqualTo(savedTransaction.getId());
-        assertThat(foundTransaction.get().getFromAccountId()).isEqualTo(3L);
-        assertThat(foundTransaction.get().getToAccountId()).isEqualTo(4L);
+        assertThat(foundTransaction.get().getFromAccountId()).isEqualTo(fromAccountId);
+        assertThat(foundTransaction.get().getToAccountId()).isEqualTo(toAccountId);
         assertThat(foundTransaction.get().getAmount()).isEqualByComparingTo(new BigDecimal("200.0000"));
         assertThat(foundTransaction.get().getTransactionType()).isEqualTo(TransactionType.DEPOSIT);
         assertThat(foundTransaction.get().getCurrency()).isEqualTo(Currency.USD);
@@ -66,42 +82,49 @@ class TransactionRepositoryTest {
     @Test
     void shouldFindTransactionsByAccountId() {
         // given
+        UUID account1Id = UUID.randomUUID();
+        UUID account2Id = UUID.randomUUID();
+        UUID account3Id = UUID.randomUUID();
+        UUID account4Id = UUID.randomUUID();
+        
         Transaction transaction1 = new Transaction(
-            5L, 6L, new BigDecimal("300.0000"), 
+            account1Id, account2Id, new BigDecimal("300.0000"), 
             TransactionType.WITHDRAWAL, Currency.GBP
         );
         
         Transaction transaction2 = new Transaction(
-            7L, 5L, new BigDecimal("400.0000"), 
+            account3Id, account1Id, new BigDecimal("400.0000"), 
             TransactionType.TRANSFER, Currency.GBP
         );
         
         Transaction transaction3 = new Transaction(
-            8L, 9L, new BigDecimal("500.0000"), 
+            account4Id, account2Id, new BigDecimal("500.0000"), 
             TransactionType.GAME_BET, Currency.EUR
         );
         
         transactionRepository.saveAll(List.of(transaction1, transaction2, transaction3));
+        entityManager.flush();
+        entityManager.clear();
 
         // when
-        List<Transaction> accountTransactions = transactionRepository.findByAccountId(5L);
+        List<Transaction> accountTransactions = transactionRepository.findByAccountId(account1Id);
 
         // then
         assertThat(accountTransactions).hasSize(2);
         
-        // Verify first transaction is in the result (account 5 sending to account 6)
+        // Verify first transaction is in the result (account1 sending to account2)
         assertThat(accountTransactions).anyMatch(t -> 
-            t.getFromAccountId().equals(5L) && t.getToAccountId().equals(6L));
+            t.getFromAccountId().equals(account1Id) && t.getToAccountId().equals(account2Id));
         
-        // Verify second transaction is in the result (account 7 sending to account 5)
+        // Verify second transaction is in the result (account3 sending to account1)
         assertThat(accountTransactions).anyMatch(t -> 
-            t.getFromAccountId().equals(7L) && t.getToAccountId().equals(5L));
+            t.getFromAccountId().equals(account3Id) && t.getToAccountId().equals(account1Id));
     }
 
     @Test
     void shouldReturnEmptyListForAccountWithNoTransactions() {
         // when
-        List<Transaction> accountTransactions = transactionRepository.findByAccountId(999L);
+        List<Transaction> accountTransactions = transactionRepository.findByAccountId(UUID.randomUUID());
 
         // then
         assertThat(accountTransactions).isEmpty();

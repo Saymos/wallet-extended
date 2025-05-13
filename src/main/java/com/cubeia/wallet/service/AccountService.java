@@ -1,6 +1,7 @@
 package com.cubeia.wallet.service;
 
 import java.math.BigDecimal;
+import java.util.UUID;
 
 import org.springframework.stereotype.Service;
 
@@ -52,7 +53,7 @@ public class AccountService {
      * @return the balance of the account
      * @throws AccountNotFoundException if the account is not found
      */
-    public BigDecimal getBalance(Long accountId) {
+    public BigDecimal getBalance(UUID accountId) {
         Account account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new AccountNotFoundException(accountId));
         
@@ -66,7 +67,7 @@ public class AccountService {
      * @return the account
      * @throws AccountNotFoundException if the account is not found
      */
-    public Account getAccount(Long accountId) {
+    public Account getAccount(UUID accountId) {
         return accountRepository.findById(accountId)
                 .orElseThrow(() -> new AccountNotFoundException(accountId));
     }

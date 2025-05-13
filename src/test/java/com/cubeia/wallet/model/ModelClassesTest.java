@@ -2,6 +2,7 @@ package com.cubeia.wallet.model;
 
 import java.lang.reflect.Field;
 import java.math.BigDecimal;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -38,7 +39,7 @@ class ModelClassesTest {
     /**
      * Helper method to set account ID using reflection (for testing)
      */
-    private void setAccountId(Account account, Long id) {
+    private void setAccountId(Account account, UUID id) {
         try {
             Field idField = Account.class.getDeclaredField("id");
             idField.setAccessible(true);
@@ -68,8 +69,10 @@ class ModelClassesTest {
         Account toAccount = new Account(Currency.EUR, AccountType.MainAccount.getInstance());
         
         // Set IDs so we can match with the transaction
-        setAccountId(fromAccount, 1L);
-        setAccountId(toAccount, 2L);
+        UUID fromAccountId = UUID.randomUUID();
+        UUID toAccountId = UUID.randomUUID();
+        setAccountId(fromAccount, fromAccountId);
+        setAccountId(toAccount, toAccountId);
         
         // Set initial balance in source account
         setAccountBalance(fromAccount, new BigDecimal("100.00"));
@@ -99,8 +102,10 @@ class ModelClassesTest {
         Account toAccount = new Account(Currency.EUR, AccountType.MainAccount.getInstance());
         
         // Set IDs
-        setAccountId(fromAccount, 1L);
-        setAccountId(toAccount, 2L);
+        UUID fromAccountId = UUID.randomUUID();
+        UUID toAccountId = UUID.randomUUID();
+        setAccountId(fromAccount, fromAccountId);
+        setAccountId(toAccount, toAccountId);
         
         // Create transaction with more than available funds
         BigDecimal amount = new BigDecimal("50.00");
@@ -116,7 +121,7 @@ class ModelClassesTest {
         IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
             transaction.execute(transaction, fromAccount, toAccount);
         });
-        assertTrue(exception.getMessage().contains("Insufficient funds in account: 1"));
+        assertTrue(exception.getMessage().contains("Insufficient funds in account"));
     }
     
     @Test
@@ -126,8 +131,10 @@ class ModelClassesTest {
         Account toAccount = new Account(Currency.USD, AccountType.MainAccount.getInstance());
         
         // Set IDs
-        setAccountId(fromAccount, 1L);
-        setAccountId(toAccount, 2L);
+        UUID fromAccountId = UUID.randomUUID();
+        UUID toAccountId = UUID.randomUUID();
+        setAccountId(fromAccount, fromAccountId);
+        setAccountId(toAccount, toAccountId);
         
         // Set initial balance
         setAccountBalance(fromAccount, new BigDecimal("100.00"));
@@ -151,8 +158,8 @@ class ModelClassesTest {
     @Test
     void transaction_Constructor() {
         // Arrange
-        Long fromAccountId = 1L;
-        Long toAccountId = 2L;
+        UUID fromAccountId = UUID.randomUUID();
+        UUID toAccountId = UUID.randomUUID();
         BigDecimal amount = new BigDecimal("50.00");
         TransactionType type = TransactionType.TRANSFER;
         Currency currency = Currency.EUR;
@@ -173,8 +180,8 @@ class ModelClassesTest {
     @Test
     void transaction_NegativeAmount() {
         // Arrange
-        Long fromAccountId = 1L;
-        Long toAccountId = 2L;
+        UUID fromAccountId = UUID.randomUUID();
+        UUID toAccountId = UUID.randomUUID();
         BigDecimal negativeAmount = new BigDecimal("-50.00");
         TransactionType type = TransactionType.TRANSFER;
         Currency currency = Currency.EUR;

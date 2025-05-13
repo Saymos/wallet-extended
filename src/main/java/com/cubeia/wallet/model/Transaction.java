@@ -3,15 +3,16 @@ package com.cubeia.wallet.model;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Objects;
+import java.util.UUID;
 
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.GenericGenerator;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
@@ -24,14 +25,16 @@ import jakarta.persistence.Table;
 public class Transaction {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @GeneratedValue(generator = "UUID")
+    @GenericGenerator(name = "UUID", strategy = "org.hibernate.id.UUIDGenerator")
+    @Column(name = "id", updatable = false, nullable = false)
+    private UUID id;
 
     @Column(name = "from_account_id", nullable = false)
-    private final Long fromAccountId;
+    private final UUID fromAccountId;
 
     @Column(name = "to_account_id", nullable = false)
-    private final Long toAccountId;
+    private final UUID toAccountId;
 
     @Column(precision = 19, scale = 4, nullable = false)
     private final BigDecimal amount;
@@ -75,7 +78,7 @@ public class Transaction {
      * @param currency The currency of the transaction
      * @param reference An optional reference for the transaction
      */
-    public Transaction(Long fromAccountId, Long toAccountId, BigDecimal amount, 
+    public Transaction(UUID fromAccountId, UUID toAccountId, BigDecimal amount, 
             TransactionType transactionType, Currency currency, String reference) {
         
         if (amount.compareTo(BigDecimal.ZERO) <= 0) {
@@ -99,7 +102,7 @@ public class Transaction {
      * @param transactionType The type of transaction
      * @param currency The currency of the transaction
      */
-    public Transaction(Long fromAccountId, Long toAccountId, BigDecimal amount, 
+    public Transaction(UUID fromAccountId, UUID toAccountId, BigDecimal amount, 
             TransactionType transactionType, Currency currency) {
         this(fromAccountId, toAccountId, amount, transactionType, currency, null);
     }
@@ -118,8 +121,8 @@ public class Transaction {
         if (!fromAccount.getId().equals(fromAccountId) || !toAccount.getId().equals(toAccountId)) {
             throw new IllegalArgumentException("""
                 Account IDs do not match transaction record:
-                Expected fromAccount ID: %d, Actual: %d
-                Expected toAccount ID: %d, Actual: %d
+                Expected fromAccount ID: %s, Actual: %s
+                Expected toAccount ID: %s, Actual: %s
                 """.formatted(fromAccountId, fromAccount.getId(), toAccountId, toAccount.getId()));
         }
         
@@ -137,7 +140,7 @@ public class Transaction {
         BigDecimal fromNewBalance = fromAccount.getBalance().subtract(amount);
         if (fromNewBalance.compareTo(BigDecimal.ZERO) < 0) {
             throw new IllegalArgumentException("""
-                Insufficient funds in account: %d
+                Insufficient funds in account: %s
                 Current balance: %s
                 Required amount: %s
                 """.formatted(fromAccountId, fromAccount.getBalance(), amount));
@@ -167,8 +170,8 @@ public class Transaction {
         if (!Objects.equals(fromAccount.getId(), fromAccountId) || !Objects.equals(toAccount.getId(), toAccountId)) {
             throw new IllegalArgumentException("""
                 Account IDs do not match transaction record:
-                Expected fromAccount ID: %d, Actual: %d
-                Expected toAccount ID: %d, Actual: %d
+                Expected fromAccount ID: %s, Actual: %s
+                Expected toAccount ID: %s, Actual: %s
                 """.formatted(fromAccountId, fromAccount.getId(), toAccountId, toAccount.getId()));
         }
         
@@ -176,15 +179,15 @@ public class Transaction {
         execute(fromAccount, toAccount);
     }
     
-    public Long getId() {
+    public UUID getId() {
         return id;
     }
     
-    public Long getFromAccountId() {
+    public UUID getFromAccountId() {
         return fromAccountId;
     }
     
-    public Long getToAccountId() {
+    public UUID getToAccountId() {
         return toAccountId;
     }
     

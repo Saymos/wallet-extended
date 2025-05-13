@@ -3,6 +3,7 @@ package com.cubeia.wallet.repository;
 import java.lang.reflect.Field;
 import java.math.BigDecimal;
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import org.junit.jupiter.api.Test;
@@ -106,7 +107,7 @@ class AccountRepositoryTest {
     @Test
     void shouldReturnEmptyOptionalForNonExistentAccount() {
         // when
-        Optional<Account> nonExistentAccount = accountRepository.findById(999L);
+        Optional<Account> nonExistentAccount = accountRepository.findById(UUID.randomUUID());
 
         // then
         assertThat(nonExistentAccount).isEmpty();

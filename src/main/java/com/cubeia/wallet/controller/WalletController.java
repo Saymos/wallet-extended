@@ -2,7 +2,7 @@ package com.cubeia.wallet.controller;
 
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.Map;
+import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -75,7 +75,7 @@ public class WalletController {
         @ApiResponse(responseCode = "404", description = "Account not found")
     })
     public ResponseEntity<BalanceResponseDto> getBalance(
-            @Parameter(description = "ID of the account") @PathVariable Long id) {
+            @Parameter(description = "ID of the account") @PathVariable UUID id) {
         BigDecimal balance = accountService.getBalance(id);
         BalanceResponseDto response = new BalanceResponseDto(balance);
         return ResponseEntity.ok(response);
@@ -120,12 +120,12 @@ public class WalletController {
         @ApiResponse(responseCode = "404", description = "Account not found")
     })
     public ResponseEntity<List<Transaction>> getTransactions(
-            @Parameter(description = "ID of the account") @PathVariable Long id) {
+            @Parameter(description = "ID of the account") @PathVariable UUID id) {
         // First verify the account exists by getting the balance
         accountService.getBalance(id);
         
         // If we get here, the account exists, so fetch transactions
-        List<Transaction> transactions = transactionService.getTransactionsByAccountId(id);
+        List<Transaction> transactions = transactionService.getAccountTransactions(id);
         return ResponseEntity.ok(transactions);
     }
 } 

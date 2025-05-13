@@ -3,6 +3,7 @@ package com.cubeia.wallet.controller;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -25,6 +26,9 @@ import com.cubeia.wallet.model.Account;
 import com.cubeia.wallet.repository.AccountRepository;
 import com.cubeia.wallet.repository.TransactionRepository;
 
+/**
+ * Integration tests for the wallet controller.
+ */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 public class WalletControllerTest {
@@ -47,7 +51,7 @@ public class WalletControllerTest {
 
     @BeforeEach
     public void setup() {
-        // Clean up the repositories before each test
+        // Clear database for clean test
         transactionRepository.deleteAll();
         accountRepository.deleteAll();
     }
@@ -64,13 +68,13 @@ public class WalletControllerTest {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().getId()).isNotNull();
-        assertThat(response.getBody().getBalance().compareTo(BigDecimal.ZERO)).isEqualTo(0);
+        assertThat(response.getBody().getBalance()).isEqualTo(BigDecimal.ZERO);
     }
 
     @Test
     public void getBalance_ShouldReturnCorrectBalance() {
         // given
-        Account account = createAccountWithBalance(new BigDecimal("100.00"));
+        Account account = createAccountWithBalance(new BigDecimal("123.45"));
 
         // when
         ResponseEntity<Map> response = restTemplate.getForEntity(
@@ -82,15 +86,17 @@ public class WalletControllerTest {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody()).isNotNull();
         assertThat(new BigDecimal(response.getBody().get("balance").toString()))
-            .isEqualByComparingTo(new BigDecimal("100.00"));
+            .isEqualByComparingTo(new BigDecimal("123.45"));
     }
 
     @Test
     public void getBalance_ShouldReturn404ForNonExistentAccount() {
         // when
+        UUID nonExistentId = UUID.randomUUID();
         ResponseEntity<String> response = restTemplate.getForEntity(
-                getBaseUrl() + "/accounts/999/balance",
-                String.class);
+                getBaseUrl() + "/accounts/{id}/balance",
+                String.class,
+                nonExistentId);
 
         // then
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
@@ -145,7 +151,7 @@ public class WalletControllerTest {
 
         // then
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-        assertTrue(response.getBody().get("message").toString().contains("insufficient funds"));
+        assertTrue(response.getBody().get("message").toString().contains("Insufficient funds"));
 
         // Verify the balances remain unchanged
         BigDecimal fromBalance = getAccountBalance(fromAccount.getId());
@@ -161,7 +167,7 @@ public class WalletControllerTest {
         Account toAccount = createAccountWithBalance(BigDecimal.ZERO);
 
         TransferRequestDto transferRequest = new TransferRequestDto(
-            999L,
+            UUID.randomUUID(),
             toAccount.getId(),
             new BigDecimal("100.00")
         );
@@ -197,7 +203,8 @@ public class WalletControllerTest {
 
         // then
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-        assertTrue(response.getBody().get("message").toString().contains("positive"));
+        Map<String, Object> fieldErrors = (Map<String, Object>) response.getBody().get("fieldErrors");
+        assertTrue(fieldErrors.containsKey("amount"));
     }
 
     @Test
@@ -244,9 +251,11 @@ public class WalletControllerTest {
     @Test
     public void getTransactions_ShouldReturn404ForNonExistentAccount() {
         // when
-        ResponseEntity<String> response = restTemplate.getForEntity(
-                getBaseUrl() + "/accounts/999/transactions",
-                String.class);
+        UUID nonExistentId = UUID.randomUUID();
+        ResponseEntity<Map> response = restTemplate.getForEntity(
+                getBaseUrl() + "/accounts/{id}/transactions",
+                Map.class,
+                nonExistentId);
 
         // then
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
@@ -310,45 +319,28 @@ public class WalletControllerTest {
                 null,
                 Account.class);
         
-        if (initialBalance.compareTo(BigDecimal.ZERO) > 0) {
-            // If we need a non-zero balance, we'll create a second account and transfer from it
-            Account fundingAccount = createAccountWithZeroBalance();
-            
-            // Update the funding account balance directly in the database using reflection
+        Account account = createResponse.getBody();
+        
+        // Set the balance using reflection (for tests only)
+        if (!initialBalance.equals(BigDecimal.ZERO)) {
             try {
                 java.lang.reflect.Field balanceField = Account.class.getDeclaredField("balance");
                 balanceField.setAccessible(true);
-                balanceField.set(fundingAccount, initialBalance);
-                accountRepository.save(fundingAccount);
+                balanceField.set(account, initialBalance);
+                accountRepository.save(account);
             } catch (Exception e) {
-                throw new RuntimeException("Failed to set balance using reflection", e);
+                throw new RuntimeException("Failed to set balance", e);
             }
-            
-            // Transfer from funding account to our target account
-            TransferRequestDto transferRequest = new TransferRequestDto(
-                fundingAccount.getId(),
-                createResponse.getBody().getId(),
-                initialBalance
-            );
-            
-            restTemplate.postForEntity(
-                    getBaseUrl() + "/transfers",
-                    transferRequest,
-                    Void.class);
         }
         
-        return createResponse.getBody();
+        return account;
     }
     
     private Account createAccountWithZeroBalance() {
-        ResponseEntity<Account> createResponse = restTemplate.postForEntity(
-                getBaseUrl() + "/accounts",
-                null,
-                Account.class);
-        return createResponse.getBody();
+        return createAccountWithBalance(BigDecimal.ZERO);
     }
-
-    private BigDecimal getAccountBalance(Long accountId) {
+    
+    private BigDecimal getAccountBalance(UUID accountId) {
         ResponseEntity<Map> response = restTemplate.getForEntity(
                 getBaseUrl() + "/accounts/{id}/balance",
                 Map.class,

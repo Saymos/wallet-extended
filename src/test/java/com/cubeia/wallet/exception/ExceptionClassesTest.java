@@ -1,9 +1,9 @@
 package com.cubeia.wallet.exception;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import org.junit.jupiter.api.Test;
 
 class ExceptionClassesTest {
@@ -21,11 +21,11 @@ class ExceptionClassesTest {
     @Test
     void accountNotFoundException_WithAccountId() {
         // Act
-        Long accountId = 42L;
+        UUID accountId = UUID.randomUUID();
         AccountNotFoundException exception = new AccountNotFoundException(accountId);
         
         // Assert
-        assertEquals("Account not found with ID: " + accountId, exception.getMessage());
+        assertEquals("Account not found with id: " + accountId, exception.getMessage());
     }
     
     @Test
@@ -39,72 +39,51 @@ class ExceptionClassesTest {
     }
     
     @Test
-    void insufficientFundsException_WithAccountIdAndAmount() {
+    void insufficientFundsException_WithAccountIdAndReason() {
         // Act
-        Long accountId = 42L;
-        String amount = "100.00";
-        InsufficientFundsException exception = new InsufficientFundsException(accountId, amount);
+        UUID accountId = UUID.randomUUID();
+        String reason = "Balance too low";
+        InsufficientFundsException exception = new InsufficientFundsException(accountId, reason);
         
         // Assert
-        assertEquals("Account with ID: " + accountId + " has insufficient funds for transfer of " + amount, 
+        assertEquals("Insufficient funds in account " + accountId + ": " + reason, 
                      exception.getMessage());
     }
     
     @Test
-    void errorResponse_DefaultConstructor() {
-        // Act
-        ErrorResponse errorResponse = new ErrorResponse();
-        
-        // Assert
-        assertNull(errorResponse.getTimestamp());
-        assertEquals(0, errorResponse.getStatus());
-        assertNull(errorResponse.getError());
-        assertNull(errorResponse.getMessage());
-        assertNull(errorResponse.getPath());
-    }
-    
-    @Test
-    void errorResponse_ParameterizedConstructor() {
+    void errorResponse_Constructor() {
         // Arrange
-        LocalDateTime timestamp = LocalDateTime.now();
         int status = 404;
-        String error = "Not Found";
-        String message = "Resource not found";
-        String path = "/api/resource";
+        String message = "Not Found";
+        LocalDateTime timestamp = LocalDateTime.now();
         
         // Act
-        ErrorResponse errorResponse = new ErrorResponse(timestamp, status, error, message, path);
+        ErrorResponse errorResponse = new ErrorResponse(status, message, timestamp);
         
         // Assert
         assertEquals(timestamp, errorResponse.getTimestamp());
         assertEquals(status, errorResponse.getStatus());
-        assertEquals(error, errorResponse.getError());
         assertEquals(message, errorResponse.getMessage());
-        assertEquals(path, errorResponse.getPath());
     }
     
     @Test
-    void errorResponse_Setters() {
+    void validationErrorResponse_Constructor() {
         // Arrange
+        int status = 400;
+        String message = "Validation Failed";
         LocalDateTime timestamp = LocalDateTime.now();
-        int status = 500;
-        String error = "Internal Server Error";
-        String message = "Something went wrong";
-        String path = "/api/broken";
+        java.util.Map<String, String> fieldErrors = new java.util.HashMap<>();
+        fieldErrors.put("amount", "must be positive");
         
         // Act
-        ErrorResponse errorResponse = new ErrorResponse();
-        errorResponse.setTimestamp(timestamp);
-        errorResponse.setStatus(status);
-        errorResponse.setError(error);
-        errorResponse.setMessage(message);
-        errorResponse.setPath(path);
+        ValidationErrorResponse response = new ValidationErrorResponse(
+            status, message, timestamp, fieldErrors);
         
         // Assert
-        assertEquals(timestamp, errorResponse.getTimestamp());
-        assertEquals(status, errorResponse.getStatus());
-        assertEquals(error, errorResponse.getError());
-        assertEquals(message, errorResponse.getMessage());
-        assertEquals(path, errorResponse.getPath());
+        assertEquals(timestamp, response.getTimestamp());
+        assertEquals(status, response.getStatus());
+        assertEquals(message, response.getMessage());
+        assertEquals(fieldErrors, response.getFieldErrors());
+        assertEquals("must be positive", response.getFieldErrors().get("amount"));
     }
 } 

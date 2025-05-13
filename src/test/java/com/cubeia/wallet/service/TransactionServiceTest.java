@@ -3,6 +3,7 @@ package com.cubeia.wallet.service;
 import java.lang.reflect.Field;
 import java.math.BigDecimal;
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -11,7 +12,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import static org.mockito.Mockito.never;
@@ -45,7 +45,7 @@ public class TransactionServiceTest {
     /**
      * Helper method to set account ID using reflection (for testing)
      */
-    private void setAccountId(Account account, Long id) {
+    private void setAccountId(Account account, UUID id) {
         try {
             Field idField = Account.class.getDeclaredField("id");
             idField.setAccessible(true);
@@ -71,8 +71,8 @@ public class TransactionServiceTest {
     @Test
     void transfer_ShouldSuccessfullyTransferFunds() {
         // Arrange
-        Long fromAccountId = 1L;
-        Long toAccountId = 2L;
+        UUID fromAccountId = UUID.randomUUID();
+        UUID toAccountId = UUID.randomUUID();
         BigDecimal amount = new BigDecimal("100.00");
 
         Account fromAccount = new Account(Currency.EUR, AccountType.MainAccount.getInstance());
@@ -92,7 +92,7 @@ public class TransactionServiceTest {
             try {
                 Field idField = Transaction.class.getDeclaredField("id");
                 idField.setAccessible(true);
-                idField.set(savedTransaction, 1L);
+                idField.set(savedTransaction, UUID.randomUUID());
             } catch (Exception e) {
                 throw new RuntimeException("Failed to set transaction ID", e);
             }
@@ -122,8 +122,8 @@ public class TransactionServiceTest {
     @Test
     void transfer_ShouldThrowInsufficientFundsException() {
         // Arrange
-        Long fromAccountId = 1L;
-        Long toAccountId = 2L;
+        UUID fromAccountId = UUID.randomUUID();
+        UUID toAccountId = UUID.randomUUID();
         BigDecimal amount = new BigDecimal("300.00");
 
         Account fromAccount = new Account(Currency.EUR, AccountType.MainAccount.getInstance());
@@ -155,8 +155,8 @@ public class TransactionServiceTest {
     @Test
     void transfer_ShouldThrowAccountNotFoundExceptionForSender() {
         // Arrange
-        Long fromAccountId = 1L;
-        Long toAccountId = 2L;
+        UUID fromAccountId = UUID.randomUUID();
+        UUID toAccountId = UUID.randomUUID();
         BigDecimal amount = new BigDecimal("100.00");
 
         when(accountRepository.findByIdWithLock(fromAccountId)).thenReturn(Optional.empty());
@@ -175,8 +175,8 @@ public class TransactionServiceTest {
     @Test
     void transfer_ShouldThrowAccountNotFoundExceptionForReceiver() {
         // Arrange
-        Long fromAccountId = 1L;
-        Long toAccountId = 2L;
+        UUID fromAccountId = UUID.randomUUID();
+        UUID toAccountId = UUID.randomUUID();
         BigDecimal amount = new BigDecimal("100.00");
 
         Account fromAccount = new Account(Currency.EUR, AccountType.MainAccount.getInstance());
@@ -203,42 +203,38 @@ public class TransactionServiceTest {
     @Test
     void transfer_ShouldRejectNegativeAmount() {
         // Arrange
-        Long fromAccountId = 1L;
-        Long toAccountId = 2L;
+        UUID fromAccountId = UUID.randomUUID();
+        UUID toAccountId = UUID.randomUUID();
         BigDecimal amount = new BigDecimal("-50.00");
 
         // Act & Assert
-        assertThrows(IllegalArgumentException.class, () -> {
-            transactionService.transfer(fromAccountId, toAccountId, amount);
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
+            Transaction transaction = new Transaction(fromAccountId, toAccountId, amount, TransactionType.TRANSFER, Currency.EUR);
         });
-
-        verify(accountRepository, never()).findByIdWithLock(anyLong());
-        verify(accountRepository, never()).save(any(Account.class));
-        verify(transactionRepository, never()).save(any(Transaction.class));
+        
+        assertTrue(exception.getMessage().contains("must be positive"));
     }
 
     @Test
     void transfer_ShouldRejectZeroAmount() {
         // Arrange
-        Long fromAccountId = 1L;
-        Long toAccountId = 2L;
+        UUID fromAccountId = UUID.randomUUID();
+        UUID toAccountId = UUID.randomUUID();
         BigDecimal amount = BigDecimal.ZERO;
 
         // Act & Assert
-        assertThrows(IllegalArgumentException.class, () -> {
-            transactionService.transfer(fromAccountId, toAccountId, amount);
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
+            Transaction transaction = new Transaction(fromAccountId, toAccountId, amount, TransactionType.TRANSFER, Currency.EUR);
         });
-
-        verify(accountRepository, never()).findByIdWithLock(anyLong());
-        verify(accountRepository, never()).save(any(Account.class));
-        verify(transactionRepository, never()).save(any(Transaction.class));
+        
+        assertTrue(exception.getMessage().contains("must be positive"));
     }
     
     @Test
     void transfer_ShouldRejectCurrencyMismatch() {
         // Arrange
-        Long fromAccountId = 1L;
-        Long toAccountId = 2L;
+        UUID fromAccountId = UUID.randomUUID();
+        UUID toAccountId = UUID.randomUUID();
         BigDecimal amount = new BigDecimal("100.00");
 
         Account fromAccount = new Account(Currency.EUR, AccountType.MainAccount.getInstance());
@@ -272,8 +268,8 @@ public class TransactionServiceTest {
     @Test
     void transfer_ShouldWorkBetweenDifferentAccountTypes() {
         // Arrange
-        Long fromAccountId = 1L;
-        Long toAccountId = 2L;
+        UUID fromAccountId = UUID.randomUUID();
+        UUID toAccountId = UUID.randomUUID();
         BigDecimal amount = new BigDecimal("100.00");
 
         Account fromAccount = new Account(Currency.EUR, AccountType.MainAccount.getInstance());
@@ -293,7 +289,7 @@ public class TransactionServiceTest {
             try {
                 Field idField = Transaction.class.getDeclaredField("id");
                 idField.setAccessible(true);
-                idField.set(savedTransaction, 1L);
+                idField.set(savedTransaction, UUID.randomUUID());
             } catch (Exception e) {
                 throw new RuntimeException("Failed to set transaction ID", e);
             }

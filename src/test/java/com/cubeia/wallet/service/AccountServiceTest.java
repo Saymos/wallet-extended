@@ -3,6 +3,7 @@ package com.cubeia.wallet.service;
 import java.lang.reflect.Field;
 import java.math.BigDecimal;
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -36,7 +37,7 @@ public class AccountServiceTest {
     /**
      * Helper method to set account ID using reflection (for testing)
      */
-    private void setAccountId(Account account, Long id) {
+    private void setAccountId(Account account, UUID id) {
         try {
             Field idField = Account.class.getDeclaredField("id");
             idField.setAccessible(true);
@@ -50,7 +51,8 @@ public class AccountServiceTest {
     void createAccount_ShouldCreateAccountWithZeroBalanceAndDefaultCurrency() {
         // Arrange
         Account mockAccount = new Account(Currency.EUR, AccountType.MainAccount.getInstance());
-        setAccountId(mockAccount, 1L);
+        UUID accountId = UUID.randomUUID();
+        setAccountId(mockAccount, accountId);
         
         when(accountRepository.save(any(Account.class))).thenReturn(mockAccount);
 
@@ -59,7 +61,7 @@ public class AccountServiceTest {
 
         // Assert
         assertNotNull(result);
-        assertEquals(1L, result.getId());
+        assertEquals(accountId, result.getId());
         assertEquals(BigDecimal.ZERO, result.getBalance());
         assertEquals(Currency.EUR, result.getCurrency());
         assertEquals(AccountType.MainAccount.getInstance(), result.getAccountType());
@@ -74,7 +76,8 @@ public class AccountServiceTest {
         
         // Setup a return value for the repository mock
         Account mockAccount = new Account(currency, accountType);
-        setAccountId(mockAccount, 1L);
+        UUID accountId = UUID.randomUUID();
+        setAccountId(mockAccount, accountId);
         
         // Capture the actual account being saved to verify its properties
         ArgumentCaptor<Account> accountCaptor = ArgumentCaptor.forClass(Account.class);
@@ -85,7 +88,7 @@ public class AccountServiceTest {
 
         // Assert
         assertNotNull(result);
-        assertEquals(1L, result.getId());
+        assertEquals(accountId, result.getId());
         assertEquals(BigDecimal.ZERO, result.getBalance());
         assertEquals(currency, result.getCurrency());
         assertEquals(accountType, result.getAccountType());
@@ -101,7 +104,7 @@ public class AccountServiceTest {
     @Test
     void getBalance_ShouldReturnCorrectBalance() {
         // Arrange
-        Long accountId = 1L;
+        UUID accountId = UUID.randomUUID();
         BigDecimal expectedBalance = BigDecimal.valueOf(100.0);
         
         Account account = new Account(Currency.EUR, AccountType.MainAccount.getInstance());
@@ -129,7 +132,7 @@ public class AccountServiceTest {
     @Test
     void getBalance_ShouldThrowAccountNotFoundException() {
         // Arrange
-        Long accountId = 999L;
+        UUID accountId = UUID.randomUUID();
         when(accountRepository.findById(accountId)).thenReturn(Optional.empty());
 
         // Act & Assert
@@ -142,7 +145,7 @@ public class AccountServiceTest {
     @Test
     void getAccount_ShouldReturnAccountWithCorrectCurrencyAndType() {
         // Arrange
-        Long accountId = 1L;
+        UUID accountId = UUID.randomUUID();
         Currency expectedCurrency = Currency.CHF;
         AccountType expectedAccountType = AccountType.JackpotAccount.getInstance();
         

@@ -16,7 +16,7 @@ import jakarta.persistence.Table;
 
 /**
  * Entity representing a wallet account with a balance.
- * The account maintains an immutable currency and type, with a mutable balance
+ * The account maintains currency and type, with a mutable balance
  * that can only be updated through proper transaction mechanisms.
  * 
  * Note: H2Dialect is automatically detected by Hibernate and does not need
@@ -37,11 +37,11 @@ public class Account {
     
     @Enumerated(EnumType.STRING)
     @Column(name = "currency", nullable = false)
-    private final Currency currency;
+    private Currency currency;
     
     @Column(name = "account_type", nullable = false)
     @Convert(converter = AccountTypeConverter.class)
-    private final AccountType accountType;
+    private AccountType accountType;
     
     /**
      * Default no-args constructor required by JPA.
@@ -81,7 +81,8 @@ public class Account {
     }
     
     /**
-     * Updates the balance - only accessible to Transaction
+     * Updates the balance - only accessible to entities in the same package
+     * This ensures balance can only be modified through proper transaction mechanisms
      * 
      * @param newBalance the new balance to set
      */

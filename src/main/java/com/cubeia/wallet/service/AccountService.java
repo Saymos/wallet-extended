@@ -1,15 +1,18 @@
 package com.cubeia.wallet.service;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.cubeia.wallet.exception.AccountNotFoundException;
 import com.cubeia.wallet.model.Account;
 import com.cubeia.wallet.model.AccountType;
 import com.cubeia.wallet.model.Currency;
 import com.cubeia.wallet.repository.AccountRepository;
+import com.cubeia.wallet.repository.TransactionRepository;
 
 /**
  * Service for managing accounts.
@@ -18,9 +21,11 @@ import com.cubeia.wallet.repository.AccountRepository;
 public class AccountService {
 
     private final AccountRepository accountRepository;
+    private final TransactionRepository transactionRepository;
 
-    public AccountService(AccountRepository accountRepository) {
+    public AccountService(AccountRepository accountRepository, TransactionRepository transactionRepository) {
         this.accountRepository = accountRepository;
+        this.transactionRepository = transactionRepository;
     }
 
     /**
@@ -41,6 +46,7 @@ public class AccountService {
      * @param accountType the type of account
      * @return the created account
      */
+    @Transactional
     public Account createAccount(Currency currency, AccountType accountType) {
         Account account = new Account(currency, accountType);
         return accountRepository.save(account);
@@ -70,5 +76,14 @@ public class AccountService {
     public Account getAccount(UUID accountId) {
         return accountRepository.findById(accountId)
                 .orElseThrow(() -> new AccountNotFoundException(accountId));
+    }
+    
+    /**
+     * Get all accounts.
+     * 
+     * @return List of all accounts
+     */
+    public List<Account> getAllAccounts() {
+        return accountRepository.findAll();
     }
 } 

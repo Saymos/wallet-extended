@@ -31,7 +31,10 @@ public class TransactionService {
     }
 
     /**
-     * Transfers funds between accounts using a deadlock prevention strategy.
+     * Transfers funds between accounts with deadlock prevention.
+     * 
+     * Accounts are always locked in a consistent order (by comparing IDs) to prevent deadlocks.
+     * See README for a detailed explanation of the deadlock prevention strategy.
      * 
      * @param fromAccountId The ID of the account to transfer from
      * @param toAccountId The ID of the account to transfer to
@@ -49,12 +52,15 @@ public class TransactionService {
         
         if (fromAccountId.compareTo(toAccountId) <= 0) {
             // Regular order: fromAccount has lower or equal ID
+            // This is the normal case where we lock the source account first
             fromAccount = accountRepository.findByIdWithLock(fromAccountId)
                     .orElseThrow(() -> new AccountNotFoundException(fromAccountId));
             toAccount = accountRepository.findByIdWithLock(toAccountId)
                     .orElseThrow(() -> new AccountNotFoundException(toAccountId));
         } else {
             // Reversed order: toAccount has lower ID
+            // To prevent deadlocks, we lock the account with the lower ID first,
+            // even though it's the destination account in this case
             isReversedLockOrder = true;
             toAccount = accountRepository.findByIdWithLock(toAccountId)
                     .orElseThrow(() -> new AccountNotFoundException(toAccountId));

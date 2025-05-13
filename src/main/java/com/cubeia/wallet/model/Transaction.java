@@ -18,7 +18,7 @@ import jakarta.persistence.Table;
 
 /**
  * Entity representing a transaction between accounts.
- * This is an immutable record of a financial transaction.
+ * This is a record of a financial transaction.
  */
 @Entity
 @Table(name = "transactions")
@@ -31,24 +31,24 @@ public class Transaction {
     private UUID id;
 
     @Column(name = "from_account_id", nullable = false)
-    private final UUID fromAccountId;
+    private UUID fromAccountId;
 
     @Column(name = "to_account_id", nullable = false)
-    private final UUID toAccountId;
+    private UUID toAccountId;
 
     @Column(precision = 19, scale = 4, nullable = false)
-    private final BigDecimal amount;
+    private BigDecimal amount;
     
     @Enumerated(EnumType.STRING)
     @Column(name = "transaction_type", nullable = false)
-    private final TransactionType transactionType;
+    private TransactionType transactionType;
     
     @Enumerated(EnumType.STRING)
     @Column(name = "currency", nullable = false)
-    private final Currency currency;
+    private Currency currency;
     
     @Column(name = "reference", length = 255)
-    private final String reference;
+    private String reference;
 
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
@@ -60,12 +60,6 @@ public class Transaction {
      */
     protected Transaction() {
         // Required by JPA
-        this.fromAccountId = null;
-        this.toAccountId = null;
-        this.amount = null;
-        this.transactionType = null;
-        this.currency = null;
-        this.reference = null;
     }
     
     /**

@@ -6,7 +6,9 @@ import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import com.cubeia.wallet.exception.AccountNotFoundException;
 import com.cubeia.wallet.exception.InsufficientFundsException;
@@ -25,10 +27,19 @@ public class TransactionService {
 
     private final AccountRepository accountRepository;
     private final TransactionRepository transactionRepository;
+    private final TransactionTemplate transactionTemplate;
 
-    public TransactionService(AccountRepository accountRepository, TransactionRepository transactionRepository) {
+    public TransactionService(
+            AccountRepository accountRepository, 
+            TransactionRepository transactionRepository,
+            PlatformTransactionManager transactionManager) {
         this.accountRepository = accountRepository;
         this.transactionRepository = transactionRepository;
+        
+        // Initialize TransactionTemplate with appropriate settings
+        this.transactionTemplate = new TransactionTemplate(transactionManager);
+        this.transactionTemplate.setIsolationLevel(TransactionDefinition.ISOLATION_READ_COMMITTED);
+        this.transactionTemplate.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRED);
     }
 
     /**
@@ -44,7 +55,6 @@ public class TransactionService {
      * @throws AccountNotFoundException if either account is not found
      * @throws InsufficientFundsException if the from account has insufficient funds
      */
-    @Transactional
     public Transaction transfer(UUID fromAccountId, UUID toAccountId, BigDecimal amount) {
         return transfer(fromAccountId, toAccountId, amount, null);
     }
@@ -67,9 +77,8 @@ public class TransactionService {
      * @throws InsufficientFundsException if the from account has insufficient funds
      * @throws IllegalArgumentException if a transaction with the same reference ID exists with different parameters
      */
-    @Transactional
     public Transaction transfer(UUID fromAccountId, UUID toAccountId, BigDecimal amount, String referenceId) {
-        // Check for existing transaction with the same reference ID
+        // Check for existing transaction with the same reference ID - this doesn't need to be in a transaction
         if (referenceId != null && !referenceId.isEmpty()) {
             Optional<Transaction> existingTransaction = transactionRepository.findByReference(referenceId);
             if (existingTransaction.isPresent()) {
@@ -89,37 +98,22 @@ public class TransactionService {
             }
         }
         
-        // Always acquire locks in the same order to prevent deadlocks
-        Account fromAccount;
-        Account toAccount;
-        boolean isReversedLockOrder = false;
+        // Pre-validation: Verify accounts exist
+        Account fromAccount = accountRepository.findById(fromAccountId)
+            .orElseThrow(() -> new AccountNotFoundException(fromAccountId));
+        Account toAccount = accountRepository.findById(toAccountId)
+            .orElseThrow(() -> new AccountNotFoundException(toAccountId));
         
-        if (fromAccountId.compareTo(toAccountId) <= 0) {
-            // Regular order: fromAccount has lower or equal ID
-            // This is the normal case where we lock the source account first
-            fromAccount = accountRepository.findByIdWithLock(fromAccountId)
-                    .orElseThrow(() -> new AccountNotFoundException(fromAccountId));
-            toAccount = accountRepository.findByIdWithLock(toAccountId)
-                    .orElseThrow(() -> new AccountNotFoundException(toAccountId));
-        } else {
-            // Reversed order: toAccount has lower ID
-            // To prevent deadlocks, we lock the account with the lower ID first,
-            // even though it's the destination account in this case
-            isReversedLockOrder = true;
-            toAccount = accountRepository.findByIdWithLock(toAccountId)
-                    .orElseThrow(() -> new AccountNotFoundException(toAccountId));
-            fromAccount = accountRepository.findByIdWithLock(fromAccountId)
-                    .orElseThrow(() -> new AccountNotFoundException(fromAccountId));
-        }
-        
-        // Check for currency mismatch
+        // Pre-validation: Check for currency mismatch (doesn't need a lock)
         if (!fromAccount.getCurrency().equals(toAccount.getCurrency())) {
             throw new IllegalArgumentException(String.format(
                 "Currency mismatch: Cannot transfer between accounts with different currencies (%s and %s)",
                 fromAccount.getCurrency(), toAccount.getCurrency()));
         }
         
-        // Check for sufficient funds
+        // Pre-validation: Check for sufficient funds
+        // This is a preliminary check that will be verified again within the transaction
+        // but helps fail fast before acquiring locks
         BigDecimal maxWithdrawal = fromAccount.getMaxWithdrawalAmount();
         if (amount.compareTo(maxWithdrawal) > 0) {
             String reason = String.format(
@@ -128,7 +122,7 @@ public class TransactionService {
             throw new InsufficientFundsException(fromAccountId, reason);
         }
         
-        // Create the transaction object
+        // Pre-create the transaction object outside the transaction boundary
         Currency currency = fromAccount.getCurrency();
         Transaction transaction = new Transaction(
             fromAccountId, 
@@ -139,27 +133,44 @@ public class TransactionService {
             referenceId
         );
         
-        // Execute the transaction (update balances)
-        try {
-            transaction.execute(transaction, fromAccount, toAccount);
-        } catch (IllegalArgumentException e) {
-            // Defensive code: This exception handler exists for robustness but should rarely if ever be triggered
-            // in normal operation since:
-            // 1. We've already checked the balance with getMaxWithdrawalAmount()
-            // 2. The account is locked with PESSIMISTIC_WRITE, preventing concurrent modifications
-            // 3. The entire operation is within a @Transactional boundary
-            // However, if somehow an IllegalArgumentException with "Insufficient funds" occurs, 
-            // we convert it to our domain-specific exception
-            if (e.getMessage().contains("Insufficient funds")) {
-                throw new InsufficientFundsException(fromAccountId, e.getMessage());
+        // Execute only the critical section within a transaction
+        return transactionTemplate.execute(status -> {
+            // Always acquire locks in the same order to prevent deadlocks
+            Account lockedFromAccount;
+            Account lockedToAccount;
+            
+            // Determine lock order based on account IDs
+            if (fromAccountId.compareTo(toAccountId) <= 0) {
+                // Regular order: fromAccount has lower or equal ID
+                lockedFromAccount = accountRepository.findByIdWithLock(fromAccountId)
+                        .orElseThrow(() -> new AccountNotFoundException(fromAccountId));
+                lockedToAccount = accountRepository.findByIdWithLock(toAccountId)
+                        .orElseThrow(() -> new AccountNotFoundException(toAccountId));
+            } else {
+                // Reversed order: toAccount has lower ID
+                lockedToAccount = accountRepository.findByIdWithLock(toAccountId)
+                        .orElseThrow(() -> new AccountNotFoundException(toAccountId));
+                lockedFromAccount = accountRepository.findByIdWithLock(fromAccountId)
+                        .orElseThrow(() -> new AccountNotFoundException(fromAccountId));
             }
-            throw e;
-        }
-        
-        // Save updated accounts and transaction
-        accountRepository.save(fromAccount);
-        accountRepository.save(toAccount);
-        return transactionRepository.save(transaction);
+            
+            // Verify funds again with locked accounts (balances may have changed)
+            BigDecimal fromNewBalance = lockedFromAccount.getBalance().subtract(amount);
+            if (fromNewBalance.compareTo(BigDecimal.ZERO) < 0) {
+                throw new InsufficientFundsException(fromAccountId, 
+                    "Insufficient funds in account: Current balance: " + 
+                    lockedFromAccount.getBalance() + ", Required amount: " + amount);
+            }
+            
+            // Execute the balance updates
+            lockedFromAccount.updateBalance(fromNewBalance);
+            lockedToAccount.updateBalance(lockedToAccount.getBalance().add(amount));
+            
+            // Save updated accounts and transaction
+            accountRepository.save(lockedFromAccount);
+            accountRepository.save(lockedToAccount);
+            return transactionRepository.save(transaction);
+        });
     }
     
     /**

@@ -7,20 +7,18 @@ import org.hibernate.annotations.CreationTimestamp;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
-import lombok.AllArgsConstructor;
-import lombok.NoArgsConstructor;
 
 /**
  * Entity representing a transaction between accounts.
  */
 @Entity
 @Table(name = "transactions")
-@NoArgsConstructor
-@AllArgsConstructor
 public class Transaction {
 
     @Id
@@ -35,10 +33,28 @@ public class Transaction {
 
     @Column(precision = 19, scale = 4, nullable = false)
     private BigDecimal amount;
+    
+    @Enumerated(EnumType.STRING)
+    @Column(name = "transaction_type", nullable = false)
+    private TransactionType transactionType = TransactionType.TRANSFER; // Default
+    
+    @Enumerated(EnumType.STRING)
+    @Column(name = "currency", nullable = false)
+    private Currency currency = Currency.EUR; // Default
+    
+    @Column(name = "reference", length = 255)
+    private String reference; // Optional reference (e.g., game ID, payment ID)
 
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
     private LocalDateTime timestamp;
+    
+    /**
+     * Default constructor.
+     */
+    public Transaction() {
+        // Required by JPA
+    }
     
     public Long getId() {
         return id;
@@ -70,6 +86,30 @@ public class Transaction {
     
     public void setAmount(BigDecimal amount) {
         this.amount = amount;
+    }
+    
+    public TransactionType getTransactionType() {
+        return transactionType;
+    }
+    
+    public void setTransactionType(TransactionType transactionType) {
+        this.transactionType = transactionType;
+    }
+    
+    public Currency getCurrency() {
+        return currency;
+    }
+    
+    public void setCurrency(Currency currency) {
+        this.currency = currency;
+    }
+    
+    public String getReference() {
+        return reference;
+    }
+    
+    public void setReference(String reference) {
+        this.reference = reference;
     }
     
     public LocalDateTime getTimestamp() {

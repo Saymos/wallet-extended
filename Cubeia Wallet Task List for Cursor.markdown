@@ -45,7 +45,7 @@ This task list guides you through implementing the Cubeia Wallet application usi
     - **Files**: `service/TransactionService.java`
 
 ### 8. Write Wallet Controller Tests (Integration Tests)
-- [ ] **Prompt**: "Create `WalletControllerTest.java` in `controller/` under the test directory. Use `@SpringBootTest` with a web environment (e.g., `WebEnvironment.RANDOM_PORT`) and `TestRestTemplate` or `MockMvc` for integration testing against an in-memory H2 database. Write tests for the REST endpoints:
+- [x] **Prompt**: "Create `WalletControllerTest.java` in `controller/` under the test directory. Use `@SpringBootTest` with a web environment (e.g., `WebEnvironment.RANDOM_PORT`) and `TestRestTemplate` or `MockMvc` for integration testing against an in-memory H2 database. Write tests for the REST endpoints:
     1.  `POST /accounts`: Successfully creates an account, returns 201 status and account details/ID.
     2.  `GET /accounts/{id}/balance`: Returns correct balance for an existing account (200 OK). Returns 404 for non-existent account.
     3.  `POST /transfers`: Executes a valid transfer, returns 200 OK or 204 No Content. Test invalid transfers: non-existent accounts (404), insufficient funds (400 or other appropriate error), invalid amount (400).
@@ -55,26 +55,26 @@ This task list guides you through implementing the Cubeia Wallet application usi
 - **Files**: `controller/WalletControllerTest.java`
 
 ### 9. Implement Wallet Controller & Verify
-- [ ] **9a. Implement:** **Prompt**: "Create `WalletController.java` in `controller/` under the main directory. Implement the class with `@RestController` and `@RequestMapping("/accounts")` (or just `/` if preferred). Define handler methods for the endpoints tested in task 8:
+- [x] **9a. Implement:** **Prompt**: "Create `WalletController.java` in `controller/` under the main directory. Implement the class with `@RestController` and `@RequestMapping("/accounts")` (or just `/` if preferred). Define handler methods for the endpoints tested in task 8:
     1.  `POST /` (or `/accounts`): Takes necessary info (if any, maybe just creates an empty one), calls `AccountService.createAccount`, returns appropriate response (e.g., `ResponseEntity<AccountDto>`).
     2.  `GET /{id}/balance`: Calls `AccountService.getBalance`, returns balance (e.g., `ResponseEntity<BigDecimal>`).
     3.  `POST /transfers` (note: might be better at top level `/transfers` or keep as `/accounts/transfers`): Takes a `TransferRequestDto` (containing `fromAccountId`, `toAccountId`, `amount`) in the request body. Calls `TransactionService.transfer`. Return `ResponseEntity<Void>` or similar.
     4.  `GET /{id}/transactions`: Calls `TransactionService` (needs a method like `findTransactionsByAccountId`), returns a list of `TransactionDto`.
     Create necessary DTOs: `TransferRequestDto` (with validation annotations), `TransactionDto`, `AccountDto` (if needed for creation response). Autowire `AccountService` and `TransactionService`."
     - **Files**: `controller/WalletController.java`, `dto/TransferRequestDto.java`, `dto/TransactionDto.java`, `dto/AccountDto.java` (optional), needs update to `TransactionService.java` for listing transactions.
-- [ ] **9b. Test & Debug:** **Prompt**: "Run the integration tests in `WalletControllerTest.java` (e.g., via IDE or `mvn verify` which should include integration tests). If any tests fail, analyze the errors and and rewrite the implementation in `WalletController.java`, relevant DTOs, or services until all tests pass."
+- [x] **9b. Test & Debug:** **Prompt**: "Run the integration tests in `WalletControllerTest.java` (e.g., via IDE or `mvn verify` which should include integration tests). If any tests fail, analyze the errors and and rewrite the implementation in `WalletController.java`, relevant DTOs, or services until all tests pass."
     - **Files**: `controller/WalletController.java`, `dto/*`, `service/*`
 
 ### 10. Add Validation and Error Handling
-- [ ] **Prompt**: "Ensure validation annotations (`@NotNull`, `@Positive`, etc.) are present on `TransferRequestDto`. Create `GlobalExceptionHandler.java` in an `exception` or `controller` package with `@ControllerAdvice`. Implement `@ExceptionHandler` methods for your custom exceptions (`AccountNotFoundException`, `InsufficientFundsException`) and potentially common Spring exceptions (`MethodArgumentNotValidException` for DTO validation failures, `HttpRequestMethodNotSupportedException`, etc.). These handlers should return clear JSON error responses (e.g., using a consistent `ErrorResponse` DTO containing timestamp, status, error, message, path) and appropriate HTTP status codes (404, 400, etc.). After completing this task, update this task list by marking this task as `[x]`, save the changes, and proceed to the next unfinished task."
+- [x] **Prompt**: "Ensure validation annotations (`@NotNull`, `@Positive`, etc.) are present on `TransferRequestDto`. Create `GlobalExceptionHandler.java` in an `exception` or `controller` package with `@ControllerAdvice`. Implement `@ExceptionHandler` methods for your custom exceptions (`AccountNotFoundException`, `InsufficientFundsException`) and potentially common Spring exceptions (`MethodArgumentNotValidException` for DTO validation failures, `HttpRequestMethodNotSupportedException`, etc.). These handlers should return clear JSON error responses (e.g., using a consistent `ErrorResponse` DTO containing timestamp, status, error, message, path) and appropriate HTTP status codes (404, 400, etc.). After completing this task, update this task list by marking this task as `[x]`, save the changes, and proceed to the next unfinished task."
 - **Files**: `dto/TransferRequestDto.java`, `exception/GlobalExceptionHandler.java`, `dto/ErrorResponse.java` (or similar)
 
 ### 11. Document the API
-- [ ] **Prompt**: "Configure Springdoc OpenAPI if not already done. You might need a `OpenApiConfig.java` in `config/` with `@OpenAPIDefinition` to add general API info (title, version, description). Ensure controller methods and DTOs have basic annotations (`@Operation`, `@Parameter`, `@Schema`) if needed for clarity in Swagger UI. Update/Create `README.md` with: 1) Project overview. 2) Build instructions (`mvn clean install` or `mvn clean verify`). 3) Run instructions (`java -jar target/wallet-app-name.jar`). 4) Link to the Swagger UI endpoint (usually `/swagger-ui.html`). 5) Example `curl` commands for each API endpoint. After completing this task, update this task list by marking this task as `[x]`, save the changes, and proceed to the next unfinished task."
+- [x] **Prompt**: "Configure Springdoc OpenAPI if not already done. You might need a `OpenApiConfig.java` in `config/` with `@OpenAPIDefinition` to add general API info (title, version, description). Ensure controller methods and DTOs have basic annotations (`@Operation`, `@Parameter`, `@Schema`) if needed for clarity in Swagger UI. Update/Create `README.md` with: 1) Project overview. 2) Build instructions (`mvn clean install` or `mvn clean verify`). 3) Run instructions (`java -jar target/wallet-app-name.jar`). 4) Link to the Swagger UI endpoint (usually `/swagger-ui.html`). 5) Example `curl` commands for each API endpoint. After completing this task, update this task list by marking this task as `[x]`, save the changes, and proceed to the next unfinished task."
 - **Files**: `config/OpenApiConfig.java` (optional), `controller/WalletController.java` (add annotations), `dto/*` (add annotations), `README.md`
 
 ### 12. Review and Refine
-- [ ] **Prompt**: "Perform a final review of the entire project. Ensure:
+- [x] **Prompt**: "Perform a final review of the entire project. Ensure:
     1. All requirements from the original assignment text are met.
     2. Code is clean, readable, and consistently formatted.
     3. Error handling is consistent.

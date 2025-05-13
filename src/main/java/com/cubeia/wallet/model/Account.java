@@ -4,20 +4,18 @@ import java.math.BigDecimal;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
-import lombok.AllArgsConstructor;
-import lombok.NoArgsConstructor;
 
 /**
  * Entity representing a wallet account with a balance.
  */
 @Entity
 @Table(name = "accounts")
-@NoArgsConstructor
-@AllArgsConstructor
 public class Account {
 
     @Id
@@ -26,6 +24,21 @@ public class Account {
 
     @Column(precision = 19, scale = 4, nullable = false)
     private BigDecimal balance;
+    
+    @Enumerated(EnumType.STRING)
+    @Column(name = "currency", nullable = false)
+    private Currency currency = Currency.EUR; // Default to EUR
+    
+    @Enumerated(EnumType.STRING)
+    @Column(name = "account_type", nullable = false)
+    private AccountType accountType = AccountType.MAIN; // Default to MAIN
+    
+    /**
+     * Default constructor.
+     */
+    public Account() {
+        // Required by JPA
+    }
     
     public Long getId() {
         return id;
@@ -41,5 +54,21 @@ public class Account {
     
     public void setBalance(BigDecimal balance) {
         this.balance = balance;
+    }
+    
+    public Currency getCurrency() {
+        return currency;
+    }
+    
+    public void setCurrency(Currency currency) {
+        this.currency = currency;
+    }
+    
+    public AccountType getAccountType() {
+        return accountType;
+    }
+    
+    public void setAccountType(AccountType accountType) {
+        this.accountType = accountType;
     }
 } 

@@ -4,6 +4,9 @@ import java.math.BigDecimal;
 import java.util.UUID;
 
 import org.hibernate.annotations.GenericGenerator;
+import org.springframework.beans.factory.annotation.Autowired;
+
+import com.cubeia.wallet.service.DoubleEntryService;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Convert;
@@ -13,11 +16,12 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 
 /**
- * Entity representing a wallet account with a balance.
- * The account maintains currency and type, with a mutable balance
- * that can only be updated through proper transaction mechanisms.
+ * Entity representing a wallet account.
+ * The account maintains currency and type, while the balance is calculated
+ * from ledger entries using double-entry bookkeeping.
  * 
  * Note: H2Dialect is automatically detected by Hibernate and does not need
  * to be specified explicitly in application.properties.
@@ -31,9 +35,6 @@ public class Account {
     @GenericGenerator(name = "UUID", strategy = "org.hibernate.id.UUIDGenerator")
     @Column(name = "id", updatable = false, nullable = false)
     private UUID id;
-
-    @Column(precision = 19, scale = 4, nullable = false)
-    private BigDecimal balance = BigDecimal.ZERO; // Initialize with zero
     
     @Enumerated(EnumType.STRING)
     @Column(name = "currency", nullable = false)
@@ -42,6 +43,13 @@ public class Account {
     @Column(name = "account_type", nullable = false)
     @Convert(converter = AccountTypeConverter.class)
     private AccountType accountType;
+    
+    /**
+     * The DoubleEntryService used to calculate balance from ledger entries.
+     * This field is not persisted and is automatically injected in managed contexts.
+     */
+    @Transient
+    private DoubleEntryService doubleEntryService;
     
     /**
      * Default no-args constructor required by JPA.
@@ -68,8 +76,17 @@ public class Account {
         return id;
     }
     
+    /**
+     * Gets the current balance calculated from ledger entries using double-entry bookkeeping.
+     * If the DoubleEntryService is not available, returns zero.
+     * 
+     * @return The calculated balance from ledger entries
+     */
     public BigDecimal getBalance() {
-        return balance;
+        if (doubleEntryService == null || id == null) {
+            return BigDecimal.ZERO;
+        }
+        return doubleEntryService.calculateBalance(id);
     }
     
     public Currency getCurrency() {
@@ -81,20 +98,18 @@ public class Account {
     }
     
     /**
-     * Updates the balance - only accessible to entities in the same package
-     * This ensures balance can only be modified through proper transaction mechanisms
+     * Sets the DoubleEntryService to use for balance calculation.
+     * This is automatically called by Spring in a managed context.
      * 
-     * @param newBalance the new balance to set
+     * @param doubleEntryService The service to use for balance calculation
      */
-    public void updateBalance(BigDecimal newBalance) {
-        this.balance = newBalance;
+    @Autowired
+    public void setDoubleEntryService(DoubleEntryService doubleEntryService) {
+        this.doubleEntryService = doubleEntryService;
     }
     
     /**
      * Determines the maximum withdrawal amount based on account type.
-     * Note: This method has been simplified to use instanceof checks instead of
-     * complex pattern matching, making the code more straightforward while still
-     * maintaining the same business logic.
      * 
      * @return The maximum amount that can be withdrawn
      */
@@ -102,7 +117,7 @@ public class Account {
         // Main and Jackpot accounts allow full balance withdrawal
         if (accountType instanceof AccountType.MainAccount || 
             accountType instanceof AccountType.JackpotAccount) {
-            return balance;
+            return getBalance();
         }
         
         // Bonus and Pending accounts do not allow withdrawals

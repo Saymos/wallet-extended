@@ -95,48 +95,6 @@ public class Transaction {
         this(fromAccountId, toAccountId, amount, transactionType, currency, null);
     }
     
-    /**
-     * @deprecated This method is maintained only for test compatibility.
-     * In production code, use TransactionService.executeTransaction() instead.
-     */
-    @Deprecated
-    public void execute(Transaction transaction, Account fromAccount, Account toAccount) {
-        // Verify it's the same transaction
-        if (!(transaction instanceof Transaction t && t == this)) {
-            throw new IllegalArgumentException("Transaction parameter must be the same instance as 'this'");
-        }
-        
-        // Verify account IDs match this transaction
-        if (!fromAccount.getId().equals(fromAccountId) || !toAccount.getId().equals(toAccountId)) {
-            throw new IllegalArgumentException(String.format(
-                "Account IDs do not match transaction record: Expected fromAccount ID: %s, Actual: %s, "
-                + "Expected toAccount ID: %s, Actual: %s",
-                fromAccountId, fromAccount.getId(), toAccountId, toAccount.getId()));
-        }
-        
-        // Verify currencies match
-        if (fromAccount.getCurrency() != currency || toAccount.getCurrency() != currency) {
-            throw new IllegalArgumentException(String.format(
-                "Currency mismatch: Transaction and accounts must use the same currency. "
-                + "Transaction currency: %s, From account currency: %s, To account currency: %s",
-                currency, fromAccount.getCurrency(), toAccount.getCurrency()));
-        }
-        
-        // Calculate the new balances
-        BigDecimal fromNewBalance = fromAccount.getBalance().subtract(amount);
-        
-        // Verify sufficient funds in source account
-        if (fromNewBalance.compareTo(BigDecimal.ZERO) < 0) {
-            throw new IllegalArgumentException(String.format(
-                "Insufficient funds in account: %s, Current balance: %s, Required amount: %s",
-                fromAccountId, fromAccount.getBalance(), amount));
-        }
-        
-        // Update the balances
-        fromAccount.updateBalance(fromNewBalance);
-        toAccount.updateBalance(toAccount.getBalance().add(amount));
-    }
-    
     public UUID getId() {
         return id;
     }

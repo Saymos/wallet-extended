@@ -22,10 +22,13 @@ public class AccountService {
 
     private final AccountRepository accountRepository;
     private final TransactionRepository transactionRepository;
+    private final DoubleEntryService doubleEntryService;
 
-    public AccountService(AccountRepository accountRepository, TransactionRepository transactionRepository) {
+    public AccountService(AccountRepository accountRepository, TransactionRepository transactionRepository, 
+                         DoubleEntryService doubleEntryService) {
         this.accountRepository = accountRepository;
         this.transactionRepository = transactionRepository;
+        this.doubleEntryService = doubleEntryService;
     }
 
     /**
@@ -60,10 +63,13 @@ public class AccountService {
      * @throws AccountNotFoundException if the account is not found
      */
     public BigDecimal getBalance(UUID accountId) {
-        Account account = accountRepository.findById(accountId)
-                .orElseThrow(() -> new AccountNotFoundException(accountId));
+        // First verify the account exists
+        if (!accountRepository.existsById(accountId)) {
+            throw new AccountNotFoundException(accountId);
+        }
         
-        return account.getBalance();
+        // Use the DoubleEntryService to calculate the balance from ledger entries
+        return doubleEntryService.calculateBalance(accountId);
     }
     
     /**

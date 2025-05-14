@@ -14,6 +14,7 @@ import com.cubeia.wallet.exception.CurrencyMismatchException;
 import com.cubeia.wallet.exception.InsufficientFundsException;
 import com.cubeia.wallet.model.Account;
 import com.cubeia.wallet.model.Currency;
+import com.cubeia.wallet.model.LedgerEntry;
 import com.cubeia.wallet.model.Transaction;
 import com.cubeia.wallet.model.TransactionType;
 import com.cubeia.wallet.repository.AccountRepository;
@@ -30,15 +31,18 @@ public class TransactionService {
     private final TransactionRepository transactionRepository;
     private final ValidationService validationService;
     private final TransactionTemplate transactionTemplate;
+    private final DoubleEntryService doubleEntryService;
 
     public TransactionService(
             AccountRepository accountRepository, 
             TransactionRepository transactionRepository,
             ValidationService validationService,
-            PlatformTransactionManager transactionManager) {
+            PlatformTransactionManager transactionManager,
+            DoubleEntryService doubleEntryService) {
         this.accountRepository = accountRepository;
         this.transactionRepository = transactionRepository;
         this.validationService = validationService;
+        this.doubleEntryService = doubleEntryService;
         
         // Initialize TransactionTemplate with appropriate settings
         this.transactionTemplate = createTransactionTemplate(transactionManager);
@@ -126,7 +130,7 @@ public class TransactionService {
         // Execute only the critical section within a transaction
         return getTransactionTemplate().execute(status -> {
             // Execute the transaction using our method
-            // This handles account locking, validation, and balance updates
+            // This creates ledger entries and updates balances
             executeTransaction(transaction);
             
             // Save and return the transaction record
@@ -135,7 +139,7 @@ public class TransactionService {
     }
     
     /**
-     * Executes a transaction by updating account balances.
+     * Executes a transaction by creating ledger entries using double-entry bookkeeping.
      * This method guarantees that balance updates are always tied to a transaction record.
      * All data for the transaction comes from the transaction object itself.
      * 
@@ -150,24 +154,11 @@ public class TransactionService {
         BigDecimal amount = transaction.getAmount();
         Currency currency = transaction.getCurrency();
         
-        // Always acquire locks in the same order to prevent deadlocks
-        Account fromAccount;
-        Account toAccount;
-        
-        // Determine lock order based on account IDs
-        if (fromAccountId.compareTo(toAccountId) <= 0) {
-            // Regular order: fromAccount has lower or equal ID
-            fromAccount = accountRepository.findByIdWithLock(fromAccountId)
-                    .orElseThrow(() -> new AccountNotFoundException(fromAccountId));
-            toAccount = accountRepository.findByIdWithLock(toAccountId)
-                    .orElseThrow(() -> new AccountNotFoundException(toAccountId));
-        } else {
-            // Reversed order: toAccount has lower ID
-            toAccount = accountRepository.findByIdWithLock(toAccountId)
-                    .orElseThrow(() -> new AccountNotFoundException(toAccountId));
-            fromAccount = accountRepository.findByIdWithLock(fromAccountId)
-                    .orElseThrow(() -> new AccountNotFoundException(fromAccountId));
-        }
+        // Verify that the accounts exist and currencies match
+        Account fromAccount = accountRepository.findById(fromAccountId)
+                .orElseThrow(() -> new AccountNotFoundException(fromAccountId));
+        Account toAccount = accountRepository.findById(toAccountId)
+                .orElseThrow(() -> new AccountNotFoundException(toAccountId));
         
         // Verify currencies match (both accounts and transaction must have same currency)
         if (fromAccount.getCurrency() != currency || toAccount.getCurrency() != currency) {
@@ -175,23 +166,18 @@ public class TransactionService {
                 currency, fromAccount.getCurrency(), toAccount.getCurrency());
         }
         
-        // Calculate new balances based on transaction amount
-        BigDecimal fromNewBalance = fromAccount.getBalance().subtract(amount);
+        // Use the DoubleEntryService to create the ledger entries
+        List<LedgerEntry> ledgerEntries = doubleEntryService.createTransferEntries(transaction);
+        
+        // Calculate the new balances from ledger entries for verification
+        BigDecimal fromNewBalance = doubleEntryService.calculateBalance(fromAccountId);
         
         // Verify sufficient funds in source account
         if (fromNewBalance.compareTo(BigDecimal.ZERO) < 0) {
             throw new InsufficientFundsException(fromAccount.getId(), String.format(
                 "Insufficient funds in account: %s, Current balance: %s, Required amount: %s",
-                fromAccount.getId(), fromAccount.getBalance(), amount));
+                fromAccount.getId(), doubleEntryService.calculateBalance(fromAccountId), amount));
         }
-        
-        // Update the balances
-        fromAccount.updateBalance(fromNewBalance);
-        toAccount.updateBalance(toAccount.getBalance().add(amount));
-        
-        // Save the updated accounts
-        accountRepository.save(fromAccount);
-        accountRepository.save(toAccount);
     }
     
     /**
@@ -207,5 +193,21 @@ public class TransactionService {
         }
         
         return transactionRepository.findByAccountId(accountId);
+    }
+    
+    /**
+     * Get the current balance for an account based on ledger entries.
+     * 
+     * @param accountId The account ID to get the balance for
+     * @return The current balance
+     * @throws AccountNotFoundException if the account doesn't exist
+     */
+    public BigDecimal getAccountBalance(UUID accountId) {
+        // Verify account exists first
+        if (!accountRepository.existsById(accountId)) {
+            throw new AccountNotFoundException(accountId);
+        }
+        
+        return doubleEntryService.calculateBalance(accountId);
     }
 } 

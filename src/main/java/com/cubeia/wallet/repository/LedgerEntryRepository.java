@@ -1,6 +1,7 @@
 package com.cubeia.wallet.repository;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -80,4 +81,24 @@ public interface LedgerEntryRepository extends JpaRepository<LedgerEntry, UUID> 
      */
     Page<LedgerEntry> findByAccountIdAndEntryTypeOrderByTimestampDesc(
             UUID accountId, EntryType entryType, Pageable pageable);
+            
+    /**
+     * Finds all ledger entries for a specific account before a given timestamp, ordered by timestamp (oldest first).
+     *
+     * @param accountId the ID of the account
+     * @param timestamp the timestamp before which to find entries
+     * @return a list of ledger entries
+     */
+    List<LedgerEntry> findByAccountIdAndTimestampBeforeOrderByTimestampAsc(UUID accountId, LocalDateTime timestamp);
+    
+    /**
+     * Finds all ledger entries for a specific account between two timestamps, ordered by timestamp (oldest first).
+     *
+     * @param accountId the ID of the account
+     * @param startDate the start date (inclusive)
+     * @param endDate the end date (inclusive)
+     * @return a list of ledger entries
+     */
+    List<LedgerEntry> findByAccountIdAndTimestampBetweenOrderByTimestampAsc(
+            UUID accountId, LocalDateTime startDate, LocalDateTime endDate);
 } 

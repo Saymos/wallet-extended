@@ -15,9 +15,11 @@ import org.springframework.web.bind.annotation.RestController;
 import com.cubeia.wallet.dto.BalanceResponseDto;
 import com.cubeia.wallet.dto.TransferRequestDto;
 import com.cubeia.wallet.model.Account;
+import com.cubeia.wallet.model.LedgerEntry;
 import com.cubeia.wallet.model.Transaction;
 import com.cubeia.wallet.repository.TransactionRepository;
 import com.cubeia.wallet.service.AccountService;
+import com.cubeia.wallet.service.DoubleEntryService;
 import com.cubeia.wallet.service.TransactionService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -39,12 +41,14 @@ public class WalletController {
     private final AccountService accountService;
     private final TransactionService transactionService;
     private final TransactionRepository transactionRepository;
+    private final DoubleEntryService doubleEntryService;
 
     public WalletController(AccountService accountService, TransactionService transactionService, 
-                            TransactionRepository transactionRepository) {
+                            TransactionRepository transactionRepository, DoubleEntryService doubleEntryService) {
         this.accountService = accountService;
         this.transactionService = transactionService;
         this.transactionRepository = transactionRepository;
+        this.doubleEntryService = doubleEntryService;
     }
 
     /**
@@ -72,7 +76,7 @@ public class WalletController {
      */
     @GetMapping("/accounts/{id}/balance")
     @Operation(summary = "Get account balance", 
-               description = "Retrieves the current balance of an account")
+               description = "Retrieves the current balance of an account calculated using double-entry bookkeeping")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "Balance retrieved successfully",
                      content = @Content(schema = @Schema(implementation = BalanceResponseDto.class))),
@@ -93,7 +97,7 @@ public class WalletController {
      */
     @PostMapping("/transfers")
     @Operation(summary = "Transfer funds between accounts", 
-               description = "Transfers funds from one account to another. If a referenceId is provided, the operation is idempotent - multiple requests with the same referenceId will only execute the transfer once.")
+               description = "Transfers funds from one account to another using double-entry bookkeeping. If a referenceId is provided, the operation is idempotent - multiple requests with the same referenceId will only execute the transfer once.")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "Transfer successful"),
         @ApiResponse(responseCode = "400", description = "Invalid request, insufficient funds, or referenceId conflict"),
@@ -153,5 +157,45 @@ public class WalletController {
         return transactionRepository.findByReference(referenceId)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
+    }
+    
+    /**
+     * Gets all ledger entries for an account.
+     *
+     * @param id the account ID
+     * @return list of ledger entries for the account
+     */
+    @GetMapping("/accounts/{id}/ledger-entries")
+    @Operation(summary = "Get account ledger entries", 
+               description = "Retrieves all ledger entries for an account")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Ledger entries retrieved successfully",
+                     content = @Content(schema = @Schema(implementation = LedgerEntry.class))),
+        @ApiResponse(responseCode = "404", description = "Account not found")
+    })
+    public ResponseEntity<List<LedgerEntry>> getLedgerEntries(
+            @Parameter(description = "ID of the account") @PathVariable UUID id) {
+        List<LedgerEntry> entries = doubleEntryService.getAccountEntries(id);
+        return ResponseEntity.ok(entries);
+    }
+    
+    /**
+     * Gets all ledger entries for a transaction.
+     *
+     * @param id the transaction ID
+     * @return list of ledger entries for the transaction
+     */
+    @GetMapping("/transactions/{id}/ledger-entries")
+    @Operation(summary = "Get transaction ledger entries", 
+               description = "Retrieves all ledger entries for a transaction")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Ledger entries retrieved successfully",
+                     content = @Content(schema = @Schema(implementation = LedgerEntry.class))),
+        @ApiResponse(responseCode = "404", description = "Transaction not found")
+    })
+    public ResponseEntity<List<LedgerEntry>> getTransactionLedgerEntries(
+            @Parameter(description = "ID of the transaction") @PathVariable UUID id) {
+        List<LedgerEntry> entries = doubleEntryService.getTransactionEntries(id);
+        return ResponseEntity.ok(entries);
     }
 } 

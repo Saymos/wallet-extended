@@ -87,6 +87,39 @@ public class DoubleEntryService {
     }
     
     /**
+     * Creates a direct credit entry for an account.
+     * <p>
+     * IMPORTANT: This method should only be used for system operations or testing,
+     * as it creates an unbalanced entry which violates double-entry bookkeeping principles.
+     * In a real double-entry system, every credit must have a corresponding debit.
+     * </p>
+     *
+     * @param accountId the ID of the account to credit
+     * @param amount the amount to credit
+     * @param description a description of the operation
+     * @return the created ledger entry
+     * @throws AccountNotFoundException if the account doesn't exist
+     */
+    @Transactional
+    public LedgerEntry createSystemCreditEntry(UUID accountId, BigDecimal amount, String description) {
+        if (!accountRepository.existsById(accountId)) {
+            throw new AccountNotFoundException(accountId);
+        }
+        
+        // Create a system credit entry
+        LedgerEntry creditEntry = LedgerEntry.builder()
+                .accountId(accountId)
+                .transactionId(UUID.randomUUID())  // Generate a dummy transaction ID
+                .entryType(EntryType.CREDIT)
+                .amount(amount)
+                .description(description)
+                .build();
+        
+        // Save and return the entry
+        return ledgerEntryRepository.save(creditEntry);
+    }
+    
+    /**
      * Calculates the current balance for an account based on its ledger entries.
      * <p>
      * The balance is calculated as the sum of all CREDIT entries minus the sum of all DEBIT entries.

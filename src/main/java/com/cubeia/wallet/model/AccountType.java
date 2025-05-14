@@ -10,7 +10,8 @@ public sealed interface AccountType permits
     AccountType.MainAccount,
     AccountType.BonusAccount, 
     AccountType.PendingAccount, 
-    AccountType.JackpotAccount {
+    AccountType.JackpotAccount,
+    AccountType.SystemAccount {
     
     /**
      * Get the string representation of this account type.
@@ -74,6 +75,22 @@ public sealed interface AccountType permits
         private static final JackpotAccount INSTANCE = new JackpotAccount();
         public static JackpotAccount getInstance() { return INSTANCE; }
         @Override public String name() { return "JACKPOT"; }
+        @Override public String toString() { return name(); }
+    }
+    
+    /**
+     * System account for internal operations like funding test accounts.
+     * In a production system, this would:
+     * - Have special privileges for administrative operations
+     * - Not be subject to normal withdrawal limits
+     * - Be used for system-level transfers and adjustments
+     * - Have full audit trail capabilities
+     */
+    final class SystemAccount implements AccountType {
+        private SystemAccount() {}
+        private static final SystemAccount INSTANCE = new SystemAccount();
+        public static SystemAccount getInstance() { return INSTANCE; }
+        @Override public String name() { return "SYSTEM"; }
         @Override public String toString() { return name(); }
     }
 } 

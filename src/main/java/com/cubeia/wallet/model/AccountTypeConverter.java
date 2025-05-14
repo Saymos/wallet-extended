@@ -29,6 +29,7 @@ public class AccountTypeConverter implements AttributeConverter<AccountType, Str
             case "BONUS" -> AccountType.BonusAccount.getInstance();
             case "PENDING" -> AccountType.PendingAccount.getInstance();
             case "JACKPOT" -> AccountType.JackpotAccount.getInstance();
+            case "SYSTEM" -> AccountType.SystemAccount.getInstance();
             default -> throw new IllegalArgumentException("Unknown account type: " + dbData);
         };
     }

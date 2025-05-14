@@ -114,6 +114,11 @@ public class Account {
      * @return The maximum amount that can be withdrawn
      */
     public BigDecimal getMaxWithdrawalAmount() {
+        // System accounts have unlimited withdrawal capabilities
+        if (accountType instanceof AccountType.SystemAccount) {
+            return new BigDecimal(Integer.MAX_VALUE);
+        }
+        
         // Main and Jackpot accounts allow full balance withdrawal
         if (accountType instanceof AccountType.MainAccount || 
             accountType instanceof AccountType.JackpotAccount) {

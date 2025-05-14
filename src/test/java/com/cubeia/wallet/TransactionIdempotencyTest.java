@@ -1,12 +1,15 @@
 package com.cubeia.wallet;
 
-import static org.junit.jupiter.api.Assertions.*;
-
 import java.lang.reflect.Field;
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.UUID;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,11 +17,11 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.cubeia.wallet.exception.InvalidTransactionException;
 import com.cubeia.wallet.model.Account;
 import com.cubeia.wallet.model.AccountType;
 import com.cubeia.wallet.model.Currency;
 import com.cubeia.wallet.model.Transaction;
-import com.cubeia.wallet.model.TransactionType;
 import com.cubeia.wallet.repository.AccountRepository;
 import com.cubeia.wallet.repository.TransactionRepository;
 import com.cubeia.wallet.service.TransactionService;
@@ -171,7 +174,7 @@ public class TransactionIdempotencyTest {
         );
         
         // Attempt transaction with same reference ID but different amount
-        Exception exception = assertThrows(IllegalArgumentException.class, () -> {
+        InvalidTransactionException exception = assertThrows(InvalidTransactionException.class, () -> {
             transactionService.transfer(
                     sourceAccount.getId(),
                     destinationAccount.getId(),

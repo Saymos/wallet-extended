@@ -92,16 +92,20 @@ public class Account {
     
     /**
      * Determines the maximum withdrawal amount based on account type.
-     * Uses pattern matching for switch to handle different account types.
+     * Note: This method has been simplified to use instanceof checks instead of
+     * complex pattern matching, making the code more straightforward while still
+     * maintaining the same business logic.
      * 
      * @return The maximum amount that can be withdrawn
      */
     public BigDecimal getMaxWithdrawalAmount() {
-        return switch(accountType) {
-            case AccountType.MainAccount mainAccount -> balance;
-            case AccountType.BonusAccount bonusAccount -> BigDecimal.ZERO; // Cannot withdraw from bonus account
-            case AccountType.PendingAccount pendingAccount -> BigDecimal.ZERO; // Cannot withdraw from pending
-            case AccountType.JackpotAccount jackpotAccount -> balance; // Full withdrawal allowed
-        };
+        // Main and Jackpot accounts allow full balance withdrawal
+        if (accountType instanceof AccountType.MainAccount || 
+            accountType instanceof AccountType.JackpotAccount) {
+            return balance;
+        }
+        
+        // Bonus and Pending accounts do not allow withdrawals
+        return BigDecimal.ZERO;
     }
 } 

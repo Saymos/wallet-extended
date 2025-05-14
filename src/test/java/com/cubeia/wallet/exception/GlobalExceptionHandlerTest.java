@@ -20,6 +20,8 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
+import com.cubeia.wallet.model.Currency;
+
 class GlobalExceptionHandlerTest {
 
     private GlobalExceptionHandler exceptionHandler;
@@ -53,7 +55,7 @@ class GlobalExceptionHandlerTest {
     void handleInsufficientFundsException() {
         // Arrange
         UUID accountId = UUID.randomUUID();
-        String reason = "Balance too low";
+        String reason = "Insufficient balance";
         InsufficientFundsException ex = new InsufficientFundsException(accountId, reason);
 
         // Act
@@ -64,6 +66,57 @@ class GlobalExceptionHandlerTest {
         assertNotNull(response.getBody());
         assertEquals(HttpStatus.BAD_REQUEST.value(), response.getBody().getStatus());
         assertTrue(response.getBody().getMessage().contains("Insufficient funds"));
+        assertNotNull(response.getBody().getTimestamp());
+    }
+
+    @Test
+    void handleCurrencyMismatchException() {
+        // Arrange
+        CurrencyMismatchException ex = new CurrencyMismatchException(Currency.EUR, Currency.USD);
+
+        // Act
+        ResponseEntity<ErrorResponse> response = exceptionHandler.handleCurrencyMismatchException(ex, webRequest);
+
+        // Assert
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals(HttpStatus.BAD_REQUEST.value(), response.getBody().getStatus());
+        assertEquals("Currency mismatch: Expected EUR, but got USD", response.getBody().getMessage());
+        assertNotNull(response.getBody().getTimestamp());
+    }
+
+    @Test
+    void handleInvalidTransactionException() {
+        // Arrange
+        String reason = "Amount must be positive";
+        InvalidTransactionException ex = new InvalidTransactionException(reason);
+
+        // Act
+        ResponseEntity<ErrorResponse> response = exceptionHandler.handleInvalidTransactionException(ex, webRequest);
+
+        // Assert
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals(HttpStatus.BAD_REQUEST.value(), response.getBody().getStatus());
+        assertEquals("Invalid transaction: " + reason, response.getBody().getMessage());
+        assertNotNull(response.getBody().getTimestamp());
+    }
+
+    @Test
+    void handleInvalidTransactionExceptionWithId() {
+        // Arrange
+        UUID transactionId = UUID.randomUUID();
+        String reason = "Invalid parameters";
+        InvalidTransactionException ex = new InvalidTransactionException(transactionId, reason);
+
+        // Act
+        ResponseEntity<ErrorResponse> response = exceptionHandler.handleInvalidTransactionException(ex, webRequest);
+
+        // Assert
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals(HttpStatus.BAD_REQUEST.value(), response.getBody().getStatus());
+        assertEquals("Invalid transaction with ID " + transactionId + ": " + reason, response.getBody().getMessage());
         assertNotNull(response.getBody().getTimestamp());
     }
 
@@ -147,7 +200,7 @@ class GlobalExceptionHandlerTest {
     @Test
     void handleGlobalException() {
         // Arrange
-        Exception ex = new Exception("Unexpected error");
+        Exception ex = new Exception("Unknown error");
 
         // Act
         ResponseEntity<ErrorResponse> response = exceptionHandler.handleGlobalException(ex, webRequest);

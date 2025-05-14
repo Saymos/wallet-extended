@@ -11,7 +11,9 @@ import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import com.cubeia.wallet.exception.AccountNotFoundException;
+import com.cubeia.wallet.exception.CurrencyMismatchException;
 import com.cubeia.wallet.exception.InsufficientFundsException;
+import com.cubeia.wallet.exception.InvalidTransactionException;
 import com.cubeia.wallet.model.Account;
 import com.cubeia.wallet.model.Currency;
 import com.cubeia.wallet.model.Transaction;
@@ -54,7 +56,8 @@ public class TransactionService {
      * @return The created Transaction record
      * @throws AccountNotFoundException if either account is not found
      * @throws InsufficientFundsException if the from account has insufficient funds
-     * @throws IllegalArgumentException if the amount is not positive or currencies don't match
+     * @throws CurrencyMismatchException if currencies don't match
+     * @throws InvalidTransactionException if the amount is not positive
      */
     public Transaction transfer(UUID fromAccountId, UUID toAccountId, BigDecimal amount) {
         return transfer(fromAccountId, toAccountId, amount, null);
@@ -76,13 +79,14 @@ public class TransactionService {
      * @return The created or existing Transaction record
      * @throws AccountNotFoundException if either account is not found
      * @throws InsufficientFundsException if the from account has insufficient funds
-     * @throws IllegalArgumentException if a transaction with the same reference ID exists with different parameters,
-     *                                  the amount is not positive, or currencies don't match
+     * @throws InvalidTransactionException if a transaction with the same reference ID exists with different parameters
+     *                                     or the amount is not positive
+     * @throws CurrencyMismatchException if currencies don't match
      */
     public Transaction transfer(UUID fromAccountId, UUID toAccountId, BigDecimal amount, String referenceId) {
         // Validate amount
         if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException("Transaction amount must be positive");
+            throw InvalidTransactionException.forNonPositiveAmount();
         }
         
         // Check for existing transaction with the same reference ID - this doesn't need to be in a transaction
@@ -95,9 +99,7 @@ public class TransactionService {
                 if (!existing.getFromAccountId().equals(fromAccountId) ||
                     !existing.getToAccountId().equals(toAccountId) ||
                     existing.getAmount().compareTo(amount) != 0) {
-                    throw new IllegalArgumentException(
-                        "Transaction with reference ID '" + referenceId + "' already exists with different parameters"
-                    );
+                    throw InvalidTransactionException.forDuplicateReference(referenceId);
                 }
                 
                 // Return the existing transaction for idempotency
@@ -113,9 +115,7 @@ public class TransactionService {
         
         // Pre-validation: Check for currency mismatch (doesn't need a lock)
         if (!fromAccount.getCurrency().equals(toAccount.getCurrency())) {
-            throw new IllegalArgumentException(String.format(
-                "Currency mismatch: Cannot transfer between accounts with different currencies (%s and %s)",
-                fromAccount.getCurrency(), toAccount.getCurrency()));
+            throw CurrencyMismatchException.forTransfer(fromAccount.getCurrency(), toAccount.getCurrency());
         }
         
         // Pre-validation: Check for sufficient funds
@@ -159,7 +159,7 @@ public class TransactionService {
      * @param transaction The transaction record containing details of the transfer
      * @throws AccountNotFoundException if either account is not found
      * @throws InsufficientFundsException if the source account has insufficient funds
-     * @throws IllegalArgumentException if validation fails (e.g., currency mismatch)
+     * @throws CurrencyMismatchException if currencies don't match between accounts and transaction
      */
     protected void executeTransaction(Transaction transaction) {
         UUID fromAccountId = transaction.getFromAccountId();
@@ -188,10 +188,8 @@ public class TransactionService {
         
         // Verify currencies match (both accounts and transaction must have same currency)
         if (fromAccount.getCurrency() != currency || toAccount.getCurrency() != currency) {
-            throw new IllegalArgumentException(String.format(
-                "Currency mismatch: Transaction and accounts must use the same currency. "
-                + "Transaction currency: %s, From account currency: %s, To account currency: %s",
-                currency, fromAccount.getCurrency(), toAccount.getCurrency()));
+            throw CurrencyMismatchException.forTransactionAndAccounts(
+                currency, fromAccount.getCurrency(), toAccount.getCurrency());
         }
         
         // Calculate new balances based on transaction amount

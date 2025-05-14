@@ -51,6 +51,36 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Handle CurrencyMismatchException, return 400 Bad Request.
+     */
+    @ExceptionHandler(CurrencyMismatchException.class)
+    public ResponseEntity<ErrorResponse> handleCurrencyMismatchException(
+            CurrencyMismatchException ex, WebRequest request) {
+        
+        ErrorResponse error = new ErrorResponse(
+            HttpStatus.BAD_REQUEST.value(),
+            ex.getMessage(),
+            LocalDateTime.now());
+        
+        return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
+    }
+
+    /**
+     * Handle InvalidTransactionException, return 400 Bad Request.
+     */
+    @ExceptionHandler(InvalidTransactionException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidTransactionException(
+            InvalidTransactionException ex, WebRequest request) {
+        
+        ErrorResponse error = new ErrorResponse(
+            HttpStatus.BAD_REQUEST.value(),
+            ex.getMessage(),
+            LocalDateTime.now());
+        
+        return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
+    }
+
+    /**
      * Handle IllegalArgumentException, return 400 Bad Request.
      */
     @ExceptionHandler(IllegalArgumentException.class)

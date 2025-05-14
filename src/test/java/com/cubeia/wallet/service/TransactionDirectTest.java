@@ -1,18 +1,16 @@
 package com.cubeia.wallet.service;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import java.math.BigDecimal;
+
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
-import java.math.BigDecimal;
-import java.util.UUID;
-
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.cubeia.wallet.WalletApplication;
+import com.cubeia.wallet.exception.CurrencyMismatchException;
 import com.cubeia.wallet.exception.InsufficientFundsException;
 import com.cubeia.wallet.model.Account;
 import com.cubeia.wallet.model.AccountType;
@@ -70,11 +68,11 @@ public class TransactionDirectTest {
         BigDecimal amount = new BigDecimal("100.00");
         
         // This should trigger a currency mismatch exception
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
+        CurrencyMismatchException exception = assertThrows(CurrencyMismatchException.class, () -> {
             transactionService.transfer(fromAccount.getId(), toAccount.getId(), amount);
         });
         
         // Verify the exception contains expected information
-        assertTrue(exception.getMessage().contains("Currency mismatch"));
+        assertTrue(exception.getMessage().contains("different currencies"));
     }
 } 

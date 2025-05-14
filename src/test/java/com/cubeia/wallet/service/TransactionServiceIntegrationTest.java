@@ -1,14 +1,13 @@
 package com.cubeia.wallet.service;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.lang.reflect.Field;
 import java.math.BigDecimal;
 import java.util.UUID;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -17,12 +16,12 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import com.cubeia.wallet.WalletApplication;
+import com.cubeia.wallet.exception.CurrencyMismatchException;
 import com.cubeia.wallet.exception.InsufficientFundsException;
 import com.cubeia.wallet.model.Account;
 import com.cubeia.wallet.model.AccountType;
 import com.cubeia.wallet.model.Currency;
 import com.cubeia.wallet.model.Transaction;
-import com.cubeia.wallet.model.TransactionType;
 import com.cubeia.wallet.repository.AccountRepository;
 import com.cubeia.wallet.repository.TransactionRepository;
 
@@ -97,11 +96,11 @@ public class TransactionServiceIntegrationTest {
         BigDecimal transferAmount = new BigDecimal("50.00");
         
         // Attempt to transfer between accounts with different currencies
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
+        CurrencyMismatchException exception = assertThrows(CurrencyMismatchException.class, () -> {
             transactionService.transfer(fromAccount.getId(), toAccount.getId(), transferAmount);
         });
         
-        assertTrue(exception.getMessage().contains("Currency mismatch"));
+        assertTrue(exception.getMessage().contains("different currencies"));
     }
     
     @Test

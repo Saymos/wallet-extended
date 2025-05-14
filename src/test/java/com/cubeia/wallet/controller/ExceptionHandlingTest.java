@@ -164,7 +164,7 @@ public class ExceptionHandlingTest {
         
         // and - error response should contain proper message about currency mismatch
         Map<String, Object> responseBody = (Map<String, Object>) response.getBody();
-        assertTrue(responseBody.get("message").toString().contains("Currency mismatch"));
+        assertTrue(responseBody.get("message").toString().contains("different currencies"));
     }
 
     @Test

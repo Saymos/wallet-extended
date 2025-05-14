@@ -165,6 +165,28 @@ The wallet application employs a robust deadlock prevention mechanism to ensure 
 
 This approach ensures transaction consistency and correctness while maintaining high throughput for concurrent operations.
 
+### Account Type Design
+
+The wallet application uses a sealed interface pattern for the `AccountType` hierarchy:
+
+1. **Why a sealed interface with singleton implementations?**
+   - Type Safety: Sealed interface ensures all account types are known at compile time
+   - Extensibility: New account types can be added by extending the permitted list
+   - Singleton Pattern: Each account type is a singleton to ensure instance equality checks work
+   - Pattern Matching: Enables exhaustive pattern matching in switch expressions
+
+2. **Real-world Applications**:
+   - In a production system, different account types would have additional properties and behaviors:
+     * Bonus accounts might have expiration dates and special withdrawal rules
+     * Pending accounts could have auto-conversion logic after settlement
+     * Jackpot accounts might have regulatory restrictions on withdrawals
+   - Having distinct types allows for type-specific validation and business logic
+
+3. **Implementation Details**:
+   - Each account type is implemented as a permitted class of the sealed interface
+   - Singleton instances ensure reliable equality checks
+   - The sealed nature provides compile-time guarantees about all possible subtypes
+
 ## Test Coverage and Strategy
 
 The wallet application maintains high test coverage (94%) to ensure reliability and robustness. The test approach includes:

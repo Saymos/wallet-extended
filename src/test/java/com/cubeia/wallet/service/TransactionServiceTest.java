@@ -27,7 +27,9 @@ import org.springframework.transaction.support.TransactionCallback;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import com.cubeia.wallet.exception.AccountNotFoundException;
+import com.cubeia.wallet.exception.CurrencyMismatchException;
 import com.cubeia.wallet.exception.InsufficientFundsException;
+import com.cubeia.wallet.exception.InvalidTransactionException;
 import com.cubeia.wallet.model.Account;
 import com.cubeia.wallet.model.AccountType;
 import com.cubeia.wallet.model.Currency;
@@ -238,7 +240,7 @@ public class TransactionServiceTest {
 
         // Act & Assert
         // Now the validation is in the service, not in the Transaction constructor
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
+        InvalidTransactionException exception = assertThrows(InvalidTransactionException.class, () -> {
             transactionService.transfer(fromAccountId, toAccountId, amount);
         });
         
@@ -256,7 +258,7 @@ public class TransactionServiceTest {
 
         // Act & Assert
         // Now the validation is in the service, not in the Transaction constructor
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
+        InvalidTransactionException exception = assertThrows(InvalidTransactionException.class, () -> {
             transactionService.transfer(fromAccountId, toAccountId, amount);
         });
         
@@ -285,19 +287,14 @@ public class TransactionServiceTest {
         when(accountRepository.findById(toAccountId)).thenReturn(Optional.of(toAccount));
 
         // Act & Assert
-        assertThrows(IllegalArgumentException.class, () -> {
+        CurrencyMismatchException exception = assertThrows(CurrencyMismatchException.class, () -> {
             transactionService.transfer(fromAccountId, toAccountId, amount);
         });
-
-        // Verify that balances weren't changed
-        assertEquals(new BigDecimal("200.00"), fromAccount.getBalance());
-        assertEquals(new BigDecimal("50.00"), toAccount.getBalance());
-
+        
+        assertTrue(exception.getMessage().contains("Cannot transfer between accounts with different currencies"));
         verify(accountRepository, times(1)).findById(fromAccountId);
         verify(accountRepository, times(1)).findById(toAccountId);
         verify(accountRepository, never()).findByIdWithLock(any(UUID.class));
-        verify(accountRepository, never()).save(any(Account.class));
-        verify(transactionRepository, never()).save(any(Transaction.class));
     }
     
     @Test

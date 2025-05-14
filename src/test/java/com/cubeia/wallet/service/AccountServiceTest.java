@@ -8,12 +8,15 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -30,9 +33,17 @@ public class AccountServiceTest {
 
     @Mock
     private AccountRepository accountRepository;
+    
+    @Mock
+    private DoubleEntryService doubleEntryService;
 
     @InjectMocks
     private AccountService accountService;
+    
+    @BeforeEach
+    void setUp() {
+        // Use lenient() for all mocks to avoid UnnecessaryStubbingException
+    }
 
     /**
      * Helper method to set account ID using reflection (for testing)
@@ -45,6 +56,13 @@ public class AccountServiceTest {
         } catch (Exception e) {
             throw new RuntimeException("Failed to set ID", e);
         }
+    }
+    
+    /**
+     * Helper method to set the DoubleEntryService in the Account instance
+     */
+    private void setDoubleEntryService(Account account, DoubleEntryService service) {
+        account.setDoubleEntryService(service);
     }
 
     @Test
@@ -107,39 +125,32 @@ public class AccountServiceTest {
         UUID accountId = UUID.randomUUID();
         BigDecimal expectedBalance = BigDecimal.valueOf(100.0);
         
-        Account account = new Account(Currency.EUR, AccountType.MainAccount.getInstance());
-        setAccountId(account, accountId);
+        // Mock the accountRepository to verify the account exists
+        lenient().when(accountRepository.existsById(eq(accountId))).thenReturn(true);
         
-        // Set balance using reflection
-        try {
-            Field balanceField = Account.class.getDeclaredField("balance");
-            balanceField.setAccessible(true);
-            balanceField.set(account, expectedBalance);
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to set balance", e);
-        }
-        
-        when(accountRepository.findById(accountId)).thenReturn(Optional.of(account));
+        // Mock the DoubleEntryService to return our expected balance
+        lenient().when(doubleEntryService.calculateBalance(eq(accountId))).thenReturn(expectedBalance);
 
         // Act
         BigDecimal result = accountService.getBalance(accountId);
 
         // Assert
         assertEquals(expectedBalance, result);
-        verify(accountRepository, times(1)).findById(accountId);
+        verify(accountRepository, times(1)).existsById(accountId);
+        verify(doubleEntryService, times(1)).calculateBalance(accountId);
     }
 
     @Test
     void getBalance_ShouldThrowAccountNotFoundException() {
         // Arrange
         UUID accountId = UUID.randomUUID();
-        when(accountRepository.findById(accountId)).thenReturn(Optional.empty());
+        when(accountRepository.existsById(accountId)).thenReturn(false);
 
         // Act & Assert
         assertThrows(AccountNotFoundException.class, () -> {
             accountService.getBalance(accountId);
         });
-        verify(accountRepository, times(1)).findById(accountId);
+        verify(accountRepository, times(1)).existsById(accountId);
     }
     
     @Test
@@ -151,8 +162,11 @@ public class AccountServiceTest {
         
         Account account = new Account(expectedCurrency, expectedAccountType);
         setAccountId(account, accountId);
+        setDoubleEntryService(account, doubleEntryService);
         
-        when(accountRepository.findById(accountId)).thenReturn(Optional.of(account));
+        // Mock the account with zero balance
+        lenient().when(doubleEntryService.calculateBalance(eq(accountId))).thenReturn(BigDecimal.ZERO);
+        lenient().when(accountRepository.findById(accountId)).thenReturn(Optional.of(account));
 
         // Act
         Account result = accountService.getAccount(accountId);

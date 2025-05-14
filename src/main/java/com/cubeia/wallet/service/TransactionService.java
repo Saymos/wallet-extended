@@ -2,7 +2,6 @@ package com.cubeia.wallet.service;
 
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
@@ -13,7 +12,6 @@ import org.springframework.transaction.support.TransactionTemplate;
 import com.cubeia.wallet.exception.AccountNotFoundException;
 import com.cubeia.wallet.exception.CurrencyMismatchException;
 import com.cubeia.wallet.exception.InsufficientFundsException;
-import com.cubeia.wallet.exception.InvalidTransactionException;
 import com.cubeia.wallet.model.Account;
 import com.cubeia.wallet.model.Currency;
 import com.cubeia.wallet.model.Transaction;
@@ -78,7 +76,6 @@ public class TransactionService {
      * @throws AccountNotFoundException if either account is not found
      * @throws InsufficientFundsException if the from account has insufficient funds
      * @throws CurrencyMismatchException if currencies don't match
-     * @throws InvalidTransactionException if the amount is not positive
      */
     public Transaction transfer(UUID fromAccountId, UUID toAccountId, BigDecimal amount) {
         return transfer(fromAccountId, toAccountId, amount, null);
@@ -100,46 +97,20 @@ public class TransactionService {
      * @return The created or existing Transaction record
      * @throws AccountNotFoundException if either account is not found
      * @throws InsufficientFundsException if the from account has insufficient funds
-     * @throws InvalidTransactionException if a transaction with the same reference ID exists with different parameters
-     *                                     or the amount is not positive
-     * @throws CurrencyMismatchException if currencies don't match
+     * @throws CurrencyMismatchException if currencies don't match between accounts
      */
     public Transaction transfer(UUID fromAccountId, UUID toAccountId, BigDecimal amount, String referenceId) {
-        // Check for existing transaction with the same reference ID for idempotency
-        if (referenceId != null && !referenceId.isEmpty()) {
-            Optional<Transaction> existingTransaction = transactionRepository.findByReference(referenceId);
-            if (existingTransaction.isPresent()) {
-                Transaction existing = existingTransaction.get();
-                
-                // Verify that transaction parameters match
-                if (!existing.getFromAccountId().equals(fromAccountId) ||
-                    !existing.getToAccountId().equals(toAccountId) ||
-                    existing.getAmount().compareTo(amount) != 0) {
-                    throw InvalidTransactionException.forDuplicateReference(referenceId);
-                }
-                
-                // Return the existing transaction for idempotency
-                return existing;
-            }
-        }
-        
-        // Pre-validate accounts and check for currency mismatches
+        // Consolidate all validation in ValidationService, which also handles idempotency
         TransferValidationResult validationResult = validationService.validateTransferParameters(
             fromAccountId, toAccountId, amount, referenceId);
         
+        // If we found an existing transaction with same reference ID, return it for idempotency
+        if (validationResult.existingTransaction() != null) {
+            return validationResult.existingTransaction();
+        }
+        
         Account fromAccount = validationResult.fromAccount();
         Account toAccount = validationResult.toAccount();
-        
-        // Pre-validation: Check for sufficient funds
-        // This is a preliminary check that will be verified again within the transaction
-        // but helps fail fast before acquiring locks
-        BigDecimal maxWithdrawal = fromAccount.getMaxWithdrawalAmount();
-        if (amount.compareTo(maxWithdrawal) > 0) {
-            String reason = String.format(
-                "Amount %s exceeds maximum withdrawal amount %s for account type %s",
-                amount, maxWithdrawal, fromAccount.getAccountType());
-            throw new InsufficientFundsException(fromAccountId, reason);
-        }
         
         // Pre-create the transaction object outside the transaction boundary
         Currency currency = fromAccount.getCurrency();

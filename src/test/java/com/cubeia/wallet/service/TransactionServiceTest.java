@@ -18,6 +18,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -100,6 +101,25 @@ public class TransactionServiceTest {
         }
     }
 
+    private Transaction mockMatchingExistingTransaction(UUID fromAccountId, UUID toAccountId, BigDecimal amount, String referenceId) {
+        Transaction existingTransaction = new Transaction(
+            fromAccountId, 
+            toAccountId, 
+            amount, 
+            TransactionType.TRANSFER, 
+            Currency.EUR, 
+            referenceId
+        );
+        try {
+            Field idField = Transaction.class.getDeclaredField("id");
+            idField.setAccessible(true);
+            idField.set(existingTransaction, UUID.randomUUID());
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to set ID", e);
+        }
+        return existingTransaction;
+    }
+
     @Test
     void transfer_ShouldSuccessfullyTransferFunds() {
         // Arrange
@@ -117,7 +137,7 @@ public class TransactionServiceTest {
 
         // Mock validation service
         when(validationService.validateTransferParameters(fromAccountId, toAccountId, amount, null))
-            .thenReturn(new ValidationService.TransferValidationResult(fromAccount, toAccount));
+            .thenReturn(new ValidationService.TransferValidationResult(fromAccount, toAccount, null));
             
         // Mock repository methods for the new flow
         when(accountRepository.findByIdWithLock(fromAccountId)).thenReturn(Optional.of(fromAccount));
@@ -174,19 +194,16 @@ public class TransactionServiceTest {
         setAccountId(toAccount, toAccountId);
         setAccountBalance(toAccount, new BigDecimal("50.00"));
 
-        // Mock validation service to return our accounts
+        // Mock validation service to throw InsufficientFundsException
         when(validationService.validateTransferParameters(fromAccountId, toAccountId, amount, null))
-            .thenReturn(new ValidationService.TransferValidationResult(fromAccount, toAccount));
+            .thenThrow(new InsufficientFundsException(fromAccountId, "Insufficient funds for test"));
 
         // Act & Assert
         assertThrows(InsufficientFundsException.class, () -> {
             transactionService.transfer(fromAccountId, toAccountId, amount);
         });
 
-        // Verify that balances weren't changed
-        assertEquals(new BigDecimal("200.00"), fromAccount.getBalance());
-        assertEquals(new BigDecimal("50.00"), toAccount.getBalance());
-
+        // Verify that validation was called but no database operations were performed
         verify(validationService, times(1)).validateTransferParameters(fromAccountId, toAccountId, amount, null);
         verify(accountRepository, never()).findByIdWithLock(any(UUID.class));
         verify(accountRepository, never()).save(any(Account.class));
@@ -255,7 +272,7 @@ public class TransactionServiceTest {
         
         // Mock validation service to return our accounts
         when(validationService.validateTransferParameters(fromAccountId, toAccountId, amount, null))
-            .thenReturn(new ValidationService.TransferValidationResult(fromAccount, toAccount));
+            .thenReturn(new ValidationService.TransferValidationResult(fromAccount, toAccount, null));
 
         // We allow negative amounts because validation is handled at the DTO level with @Positive
         // And our test is verifying that the service itself doesn't reject negative amounts
@@ -304,7 +321,7 @@ public class TransactionServiceTest {
         
         // Mock validation service to return our accounts
         when(validationService.validateTransferParameters(fromAccountId, toAccountId, amount, null))
-            .thenReturn(new ValidationService.TransferValidationResult(fromAccount, toAccount));
+            .thenReturn(new ValidationService.TransferValidationResult(fromAccount, toAccount, null));
 
         // We allow zero amounts because validation is handled at the DTO level with @Positive
         // And our test is verifying that the service itself doesn't reject zero amounts
@@ -379,7 +396,7 @@ public class TransactionServiceTest {
 
         // Mock validation service
         when(validationService.validateTransferParameters(fromAccountId, toAccountId, amount, null))
-            .thenReturn(new ValidationService.TransferValidationResult(fromAccount, toAccount));
+            .thenReturn(new ValidationService.TransferValidationResult(fromAccount, toAccount, null));
 
         // Mock repository methods for locked accounts
         when(accountRepository.findByIdWithLock(fromAccountId)).thenReturn(Optional.of(fromAccount));
@@ -492,7 +509,7 @@ public class TransactionServiceTest {
         // Mock validation service
         lenient().when(validationService.validateTransferParameters(
                 eq(fromAccountId), eq(toAccountId), eq(amount), any()))
-            .thenReturn(new ValidationService.TransferValidationResult(fromAccount, toAccount));
+            .thenReturn(new ValidationService.TransferValidationResult(fromAccount, toAccount, null));
         
         // Mock locked accounts retrieval
         lenient().when(accountRepository.findByIdWithLock(fromAccountId)).thenReturn(Optional.of(fromAccount));
@@ -539,41 +556,46 @@ public class TransactionServiceTest {
         UUID fromAccountId = UUID.randomUUID();
         UUID toAccountId = UUID.randomUUID();
         BigDecimal amount = new BigDecimal("100.00");
-
+        String referenceId = "TEST-REF-001";
+        
         Account fromAccount = new Account(Currency.EUR, AccountType.MainAccount.getInstance());
         setAccountId(fromAccount, fromAccountId);
         setAccountBalance(fromAccount, new BigDecimal("200.00"));
-
+        
         Account toAccount = new Account(Currency.EUR, AccountType.MainAccount.getInstance());
         setAccountId(toAccount, toAccountId);
         setAccountBalance(toAccount, new BigDecimal("50.00"));
         
-        // Mock validation service
+        // Mock the transaction template with a spy that throws an exception
+        TransactionTemplate mockTemplate = mock(TransactionTemplate.class);
+        when(mockTemplate.execute(any(TransactionCallback.class))).thenThrow(
+                new RuntimeException("Database error"));
+        
+        // Create service with mock template
+        TransactionService serviceWithMockTemplate = new TransactionService(
+                accountRepository, transactionRepository, validationService, transactionManager) {
+            @Override
+            protected TransactionTemplate getTransactionTemplate() {
+                return mockTemplate;
+            }
+        };
+        
+        // Mock validation service to return valid results
         lenient().when(validationService.validateTransferParameters(
-                eq(fromAccountId), eq(toAccountId), eq(amount), any()))
-            .thenReturn(new ValidationService.TransferValidationResult(fromAccount, toAccount));
-        
-        // Mock findById to succeed
-        lenient().when(accountRepository.findById(fromAccountId)).thenReturn(Optional.of(fromAccount));
-        lenient().when(accountRepository.findById(toAccountId)).thenReturn(Optional.of(toAccount));
-        
-        // Mock findByIdWithLock to throw exception with specific error message
-        RuntimeException databaseError = new RuntimeException("Database error");
-        lenient().when(accountRepository.findByIdWithLock(fromAccountId))
-            .thenThrow(databaseError);
-
-        // Create a service with our mocked template
-        TransactionService serviceWithTemplate = createServiceWithMockedTemplate();
+                eq(fromAccountId), eq(toAccountId), eq(amount), eq(referenceId)))
+            .thenReturn(new ValidationService.TransferValidationResult(fromAccount, toAccount, null));
         
         // Act & Assert
         RuntimeException exception = assertThrows(RuntimeException.class, () -> {
-            serviceWithTemplate.transfer(fromAccountId, toAccountId, amount);
+            serviceWithMockTemplate.transfer(fromAccountId, toAccountId, amount, referenceId);
         });
         
+        // Verify that the exception has the expected message
         assertEquals("Database error", exception.getMessage());
         
-        // Verify transaction template was called
-        verify(transactionTemplate, times(1)).execute(any(TransactionCallback.class));
+        // Verify that the validation service was called
+        verify(validationService, times(1)).validateTransferParameters(
+                fromAccountId, toAccountId, amount, referenceId);
     }
 
     /**
@@ -598,7 +620,7 @@ public class TransactionServiceTest {
         // Mock validation service
         lenient().when(validationService.validateTransferParameters(
                 eq(fromAccountId), eq(toAccountId), eq(amount), any()))
-            .thenReturn(new ValidationService.TransferValidationResult(fromAccount, toAccount));
+            .thenReturn(new ValidationService.TransferValidationResult(fromAccount, toAccount, null));
         
         // Mock the isolation level check
         when(transactionTemplate.getIsolationLevel()).thenReturn(TransactionDefinition.ISOLATION_READ_COMMITTED);
@@ -650,5 +672,44 @@ public class TransactionServiceTest {
                 return transactionTemplate;
             }
         };
+    }
+
+    @Test
+    void transfer_ShouldReturnExistingTransactionForIdempotency() {
+        // Arrange
+        UUID fromAccountId = UUID.randomUUID();
+        UUID toAccountId = UUID.randomUUID();
+        BigDecimal amount = new BigDecimal("100.00");
+        String referenceId = "IDEMPOTENT-REF-001";
+
+        Account fromAccount = new Account(Currency.EUR, AccountType.MainAccount.getInstance());
+        setAccountId(fromAccount, fromAccountId);
+        setAccountBalance(fromAccount, new BigDecimal("200.00"));
+
+        Account toAccount = new Account(Currency.EUR, AccountType.MainAccount.getInstance());
+        setAccountId(toAccount, toAccountId);
+        setAccountBalance(toAccount, new BigDecimal("50.00"));
+
+        // Create a mock existing transaction
+        Transaction existingTransaction = mockMatchingExistingTransaction(
+            fromAccountId, toAccountId, amount, referenceId);
+
+        // Mock validation service to return the existing transaction
+        when(validationService.validateTransferParameters(fromAccountId, toAccountId, amount, referenceId))
+            .thenReturn(new ValidationService.TransferValidationResult(fromAccount, toAccount, existingTransaction));
+
+        // Act
+        Transaction result = transactionService.transfer(fromAccountId, toAccountId, amount, referenceId);
+
+        // Assert
+        assertNotNull(result);
+        assertEquals(existingTransaction.getId(), result.getId());
+        
+        // Verify that validation was called but no database operations were performed
+        verify(validationService, times(1)).validateTransferParameters(
+            fromAccountId, toAccountId, amount, referenceId);
+        verify(accountRepository, never()).findByIdWithLock(any(UUID.class));
+        verify(accountRepository, never()).save(any(Account.class));
+        verify(transactionRepository, never()).save(any(Transaction.class));
     }
 } 

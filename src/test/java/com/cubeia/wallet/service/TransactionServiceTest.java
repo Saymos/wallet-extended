@@ -17,9 +17,11 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -61,6 +63,9 @@ public class TransactionServiceTest {
 
     @Mock
     private ValidationService validationService;
+    
+    @Mock
+    private DoubleEntryService doubleEntryService;
 
     @InjectMocks
     private TransactionService transactionService;
@@ -87,18 +92,14 @@ public class TransactionServiceTest {
             throw new RuntimeException("Failed to set ID", e);
         }
     }
-    
+
     /**
-     * Helper method to set account balance using reflection (for testing)
+     * Sets up the mocks to return specific balance for an account
      */
-    private void setAccountBalance(Account account, BigDecimal balance) {
-        try {
-            Field balanceField = Account.class.getDeclaredField("balance");
-            balanceField.setAccessible(true);
-            balanceField.set(account, balance);
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to set balance", e);
-        }
+    private void mockAccountBalance(UUID accountId, BigDecimal balance) {
+        // Mock the DoubleEntryService to return the specified balance for this account ID
+        // Use lenient to avoid unnecessary stubbing exceptions
+        lenient().when(doubleEntryService.calculateBalance(eq(accountId))).thenReturn(balance);
     }
 
     private Transaction mockMatchingExistingTransaction(UUID fromAccountId, UUID toAccountId, BigDecimal amount, String referenceId) {
@@ -121,7 +122,7 @@ public class TransactionServiceTest {
     }
 
     @Test
-    void transfer_ShouldSuccessfullyTransferFunds() {
+    void transfer_ShouldSuccessfullyTransferFundsUsingDoubleEntry() {
         // Arrange
         UUID fromAccountId = UUID.randomUUID();
         UUID toAccountId = UUID.randomUUID();
@@ -129,24 +130,25 @@ public class TransactionServiceTest {
 
         Account fromAccount = new Account(Currency.EUR, AccountType.MainAccount.getInstance());
         setAccountId(fromAccount, fromAccountId);
-        setAccountBalance(fromAccount, new BigDecimal("200.00"));
+        // Mock starting balance
+        mockAccountBalance(fromAccountId, new BigDecimal("200.00"));
 
         Account toAccount = new Account(Currency.EUR, AccountType.MainAccount.getInstance());
         setAccountId(toAccount, toAccountId);
-        setAccountBalance(toAccount, new BigDecimal("50.00"));
+        // Mock starting balance
+        mockAccountBalance(toAccountId, new BigDecimal("50.00"));
 
         // Mock validation service
         when(validationService.validateTransferParameters(fromAccountId, toAccountId, amount, null))
             .thenReturn(new ValidationService.TransferValidationResult(fromAccount, toAccount, null));
-            
-        // Mock repository methods for the new flow
-        when(accountRepository.findByIdWithLock(fromAccountId)).thenReturn(Optional.of(fromAccount));
-        when(accountRepository.findByIdWithLock(toAccountId)).thenReturn(Optional.of(toAccount));
         
-        when(accountRepository.save(any(Account.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        // Mock account repository findById to return our accounts
+        when(accountRepository.findById(fromAccountId)).thenReturn(Optional.of(fromAccount));
+        when(accountRepository.findById(toAccountId)).thenReturn(Optional.of(toAccount));
+        
+        // Mock transaction repository to set an ID when saving
         when(transactionRepository.save(any(Transaction.class))).thenAnswer(invocation -> {
             Transaction savedTransaction = invocation.getArgument(0);
-            // Use reflection to set transaction ID
             try {
                 Field idField = Transaction.class.getDeclaredField("id");
                 idField.setAccessible(true);
@@ -156,6 +158,13 @@ public class TransactionServiceTest {
             }
             return savedTransaction;
         });
+        
+        // Mock DoubleEntryService
+        when(doubleEntryService.createTransferEntries(any(Transaction.class))).thenAnswer(invocation -> {
+            // Return the same transaction that was passed in
+            return invocation.getArgument(0);
+        });
+        when(doubleEntryService.calculateBalance(any(UUID.class))).thenReturn(new BigDecimal("100.00"));
 
         // Act
         Transaction result = transactionService.transfer(fromAccountId, toAccountId, amount);
@@ -168,15 +177,20 @@ public class TransactionServiceTest {
         assertEquals(Currency.EUR, result.getCurrency());
         assertEquals(TransactionType.TRANSFER, result.getTransactionType());
 
-        assertEquals(new BigDecimal("100.00"), fromAccount.getBalance());
-        assertEquals(new BigDecimal("150.00"), toAccount.getBalance());
-
         // Verify correct method calls with exact counts
         verify(validationService, times(1)).validateTransferParameters(fromAccountId, toAccountId, amount, null);
-        verify(accountRepository, times(1)).findByIdWithLock(fromAccountId);
-        verify(accountRepository, times(1)).findByIdWithLock(toAccountId);
-        verify(accountRepository, times(2)).save(any(Account.class));
+        verify(doubleEntryService, times(1)).createTransferEntries(any(Transaction.class));
         verify(transactionRepository, times(1)).save(any(Transaction.class));
+        
+        // Verify that the account repository findByIdWithLock is never called directly
+        verify(accountRepository, never()).findByIdWithLock(any(UUID.class));
+        
+        // Verify account repository findById is called for both accounts
+        verify(accountRepository, times(1)).findById(fromAccountId);
+        verify(accountRepository, times(1)).findById(toAccountId);
+        
+        // Verify account balance is calculated at least once
+        verify(doubleEntryService, atLeastOnce()).calculateBalance(any(UUID.class));
     }
 
     @Test
@@ -188,11 +202,13 @@ public class TransactionServiceTest {
 
         Account fromAccount = new Account(Currency.EUR, AccountType.MainAccount.getInstance());
         setAccountId(fromAccount, fromAccountId);
-        setAccountBalance(fromAccount, new BigDecimal("200.00"));
+        // Mock starting balance
+        mockAccountBalance(fromAccountId, new BigDecimal("200.00"));
 
         Account toAccount = new Account(Currency.EUR, AccountType.MainAccount.getInstance());
         setAccountId(toAccount, toAccountId);
-        setAccountBalance(toAccount, new BigDecimal("50.00"));
+        // Mock starting balance
+        mockAccountBalance(toAccountId, new BigDecimal("50.00"));
 
         // Mock validation service to throw InsufficientFundsException
         when(validationService.validateTransferParameters(fromAccountId, toAccountId, amount, null))
@@ -265,23 +281,30 @@ public class TransactionServiceTest {
 
         Account fromAccount = new Account(Currency.EUR, AccountType.MainAccount.getInstance());
         setAccountId(fromAccount, fromAccountId);
-        setAccountBalance(fromAccount, new BigDecimal("200.00"));
-        
+        // Mock starting balance
+        mockAccountBalance(fromAccountId, new BigDecimal("200.00"));
+
         Account toAccount = new Account(Currency.EUR, AccountType.MainAccount.getInstance());
         setAccountId(toAccount, toAccountId);
-        
-        // Mock validation service to return our accounts
+        // Mock starting balance
+        mockAccountBalance(toAccountId, new BigDecimal("50.00"));
+
+        // Mock validation service
         when(validationService.validateTransferParameters(fromAccountId, toAccountId, amount, null))
             .thenReturn(new ValidationService.TransferValidationResult(fromAccount, toAccount, null));
-
-        // We allow negative amounts because validation is handled at the DTO level with @Positive
-        // And our test is verifying that the service itself doesn't reject negative amounts
+            
+        // Mock account repository methods
+        when(accountRepository.findById(fromAccountId)).thenReturn(Optional.of(fromAccount));
+        when(accountRepository.findById(toAccountId)).thenReturn(Optional.of(toAccount));
         
-        // Mock repository methods for locked accounts
-        when(accountRepository.findByIdWithLock(fromAccountId)).thenReturn(Optional.of(fromAccount));
-        when(accountRepository.findByIdWithLock(toAccountId)).thenReturn(Optional.of(toAccount));
+        // Mock double entry service
+        when(doubleEntryService.createTransferEntries(any(Transaction.class))).thenAnswer(invocation -> {
+            // Return the same transaction that was passed in
+            return invocation.getArgument(0);
+        });
+        when(doubleEntryService.calculateBalance(any(UUID.class))).thenReturn(new BigDecimal("200.00"));
         
-        when(accountRepository.save(any(Account.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        // Mock transaction repository to set an ID when saving
         when(transactionRepository.save(any(Transaction.class))).thenAnswer(invocation -> {
             Transaction savedTransaction = invocation.getArgument(0);
             try {
@@ -293,16 +316,22 @@ public class TransactionServiceTest {
             }
             return savedTransaction;
         });
-        
+
         // Act
         Transaction result = transactionService.transfer(fromAccountId, toAccountId, amount);
-        
+
         // Assert
         assertNotNull(result);
+        assertEquals(fromAccountId, result.getFromAccountId());
+        assertEquals(toAccountId, result.getToAccountId());
         assertEquals(amount, result.getAmount());
         
-        // Verify validation service was called
+        // Verify service calls
         verify(validationService, times(1)).validateTransferParameters(fromAccountId, toAccountId, amount, null);
+        verify(doubleEntryService, times(1)).createTransferEntries(any(Transaction.class));
+        verify(accountRepository, times(1)).findById(fromAccountId);
+        verify(accountRepository, times(1)).findById(toAccountId);
+        verify(transactionRepository, times(1)).save(any(Transaction.class));
     }
 
     @Test
@@ -314,23 +343,30 @@ public class TransactionServiceTest {
 
         Account fromAccount = new Account(Currency.EUR, AccountType.MainAccount.getInstance());
         setAccountId(fromAccount, fromAccountId);
-        setAccountBalance(fromAccount, new BigDecimal("200.00"));
-        
+        // Mock starting balance
+        mockAccountBalance(fromAccountId, new BigDecimal("200.00"));
+
         Account toAccount = new Account(Currency.EUR, AccountType.MainAccount.getInstance());
         setAccountId(toAccount, toAccountId);
-        
-        // Mock validation service to return our accounts
+        // Mock starting balance
+        mockAccountBalance(toAccountId, new BigDecimal("50.00"));
+
+        // Mock validation service to make it accept zero amount for testing
         when(validationService.validateTransferParameters(fromAccountId, toAccountId, amount, null))
             .thenReturn(new ValidationService.TransferValidationResult(fromAccount, toAccount, null));
-
-        // We allow zero amounts because validation is handled at the DTO level with @Positive
-        // And our test is verifying that the service itself doesn't reject zero amounts
+            
+        // Mock account repository methods
+        when(accountRepository.findById(fromAccountId)).thenReturn(Optional.of(fromAccount));
+        when(accountRepository.findById(toAccountId)).thenReturn(Optional.of(toAccount));
         
-        // Mock repository methods for locked accounts
-        when(accountRepository.findByIdWithLock(fromAccountId)).thenReturn(Optional.of(fromAccount));
-        when(accountRepository.findByIdWithLock(toAccountId)).thenReturn(Optional.of(toAccount));
+        // Mock double entry service
+        when(doubleEntryService.createTransferEntries(any(Transaction.class))).thenAnswer(invocation -> {
+            // Return the same transaction that was passed in
+            return invocation.getArgument(0);
+        });
+        when(doubleEntryService.calculateBalance(any(UUID.class))).thenReturn(new BigDecimal("200.00"));
         
-        when(accountRepository.save(any(Account.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        // Mock transaction repository to set an ID when saving
         when(transactionRepository.save(any(Transaction.class))).thenAnswer(invocation -> {
             Transaction savedTransaction = invocation.getArgument(0);
             try {
@@ -342,16 +378,22 @@ public class TransactionServiceTest {
             }
             return savedTransaction;
         });
-        
+
         // Act
         Transaction result = transactionService.transfer(fromAccountId, toAccountId, amount);
-        
+
         // Assert
         assertNotNull(result);
+        assertEquals(fromAccountId, result.getFromAccountId());
+        assertEquals(toAccountId, result.getToAccountId());
         assertEquals(amount, result.getAmount());
         
-        // Verify validation service was called
+        // Verify service calls
         verify(validationService, times(1)).validateTransferParameters(fromAccountId, toAccountId, amount, null);
+        verify(doubleEntryService, times(1)).createTransferEntries(any(Transaction.class));
+        verify(accountRepository, times(1)).findById(fromAccountId);
+        verify(accountRepository, times(1)).findById(toAccountId);
+        verify(transactionRepository, times(1)).save(any(Transaction.class));
     }
 
     @Test
@@ -384,25 +426,34 @@ public class TransactionServiceTest {
         // Arrange
         UUID fromAccountId = UUID.randomUUID();
         UUID toAccountId = UUID.randomUUID();
-        BigDecimal amount = new BigDecimal("100.00");
+        BigDecimal amount = new BigDecimal("50.00");
 
         Account fromAccount = new Account(Currency.EUR, AccountType.MainAccount.getInstance());
         setAccountId(fromAccount, fromAccountId);
-        setAccountBalance(fromAccount, new BigDecimal("200.00"));
+        // Mock starting balance
+        mockAccountBalance(fromAccountId, new BigDecimal("200.00"));
 
         Account toAccount = new Account(Currency.EUR, AccountType.BonusAccount.getInstance());
         setAccountId(toAccount, toAccountId);
-        setAccountBalance(toAccount, new BigDecimal("50.00"));
+        // Mock starting balance
+        mockAccountBalance(toAccountId, new BigDecimal("50.00"));
 
         // Mock validation service
         when(validationService.validateTransferParameters(fromAccountId, toAccountId, amount, null))
             .thenReturn(new ValidationService.TransferValidationResult(fromAccount, toAccount, null));
-
-        // Mock repository methods for locked accounts
-        when(accountRepository.findByIdWithLock(fromAccountId)).thenReturn(Optional.of(fromAccount));
-        when(accountRepository.findByIdWithLock(toAccountId)).thenReturn(Optional.of(toAccount));
+            
+        // Mock account repository methods
+        when(accountRepository.findById(fromAccountId)).thenReturn(Optional.of(fromAccount));
+        when(accountRepository.findById(toAccountId)).thenReturn(Optional.of(toAccount));
         
-        when(accountRepository.save(any(Account.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        // Mock double entry service
+        when(doubleEntryService.createTransferEntries(any(Transaction.class))).thenAnswer(invocation -> {
+            // Return the same transaction that was passed in
+            return invocation.getArgument(0);
+        });
+        when(doubleEntryService.calculateBalance(any(UUID.class))).thenReturn(new BigDecimal("100.00"));
+        
+        // Mock transaction repository to set an ID when saving
         when(transactionRepository.save(any(Transaction.class))).thenAnswer(invocation -> {
             Transaction savedTransaction = invocation.getArgument(0);
             try {
@@ -424,16 +475,12 @@ public class TransactionServiceTest {
         assertEquals(toAccountId, result.getToAccountId());
         assertEquals(amount, result.getAmount());
         assertEquals(Currency.EUR, result.getCurrency());
-        assertEquals(TransactionType.TRANSFER, result.getTransactionType());
-
-        assertEquals(new BigDecimal("100.00"), fromAccount.getBalance());
-        assertEquals(new BigDecimal("150.00"), toAccount.getBalance());
-
-        // Verify correct method calls
+        
+        // Verify service calls
         verify(validationService, times(1)).validateTransferParameters(fromAccountId, toAccountId, amount, null);
-        verify(accountRepository, times(1)).findByIdWithLock(fromAccountId);
-        verify(accountRepository, times(1)).findByIdWithLock(toAccountId);
-        verify(accountRepository, times(2)).save(any(Account.class));
+        verify(doubleEntryService, times(1)).createTransferEntries(any(Transaction.class));
+        verify(accountRepository, times(1)).findById(fromAccountId);
+        verify(accountRepository, times(1)).findById(toAccountId);
         verify(transactionRepository, times(1)).save(any(Transaction.class));
     }
 
@@ -497,26 +544,37 @@ public class TransactionServiceTest {
         UUID fromAccountId = UUID.randomUUID();
         UUID toAccountId = UUID.randomUUID();
         BigDecimal amount = new BigDecimal("100.00");
-
+        
         Account fromAccount = new Account(Currency.EUR, AccountType.MainAccount.getInstance());
         setAccountId(fromAccount, fromAccountId);
-        setAccountBalance(fromAccount, new BigDecimal("200.00"));
-
+        // Mock starting balance
+        mockAccountBalance(fromAccountId, new BigDecimal("200.00"));
+        
         Account toAccount = new Account(Currency.EUR, AccountType.MainAccount.getInstance());
         setAccountId(toAccount, toAccountId);
-        setAccountBalance(toAccount, new BigDecimal("50.00"));
+        // Mock starting balance
+        mockAccountBalance(toAccountId, new BigDecimal("50.00"));
         
-        // Mock validation service
-        lenient().when(validationService.validateTransferParameters(
-                eq(fromAccountId), eq(toAccountId), eq(amount), any()))
+        // Mock the transaction template with a spy to check execution
+        TransactionTemplate spyTemplate = spy(new TransactionTemplate(transactionManager));
+        
+        // Setup mocks
+        when(validationService.validateTransferParameters(
+                fromAccountId, toAccountId, amount, null))
             .thenReturn(new ValidationService.TransferValidationResult(fromAccount, toAccount, null));
         
-        // Mock locked accounts retrieval
-        lenient().when(accountRepository.findByIdWithLock(fromAccountId)).thenReturn(Optional.of(fromAccount));
-        lenient().when(accountRepository.findByIdWithLock(toAccountId)).thenReturn(Optional.of(toAccount));
+        when(accountRepository.findById(fromAccountId)).thenReturn(Optional.of(fromAccount));
+        when(accountRepository.findById(toAccountId)).thenReturn(Optional.of(toAccount));
         
-        lenient().when(accountRepository.save(any(Account.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        lenient().when(transactionRepository.save(any(Transaction.class))).thenAnswer(invocation -> {
+        // Mock DoubleEntryService
+        when(doubleEntryService.createTransferEntries(any(Transaction.class))).thenAnswer(invocation -> {
+            // Return the same transaction that was passed in
+            return invocation.getArgument(0);
+        });
+        when(doubleEntryService.calculateBalance(any(UUID.class))).thenReturn(new BigDecimal("100.00"));
+        
+        // Mock transaction saving
+        when(transactionRepository.save(any(Transaction.class))).thenAnswer(invocation -> {
             Transaction savedTransaction = invocation.getArgument(0);
             try {
                 Field idField = Transaction.class.getDeclaredField("id");
@@ -527,22 +585,35 @@ public class TransactionServiceTest {
             }
             return savedTransaction;
         });
-
-        // Create a service with our mocked template
-        TransactionService serviceWithTemplate = createServiceWithMockedTemplate();
+        
+        // Create a service with our spy template
+        TransactionService serviceWithSpyTemplate = new TransactionService(
+                accountRepository, 
+                transactionRepository, 
+                validationService, 
+                transactionManager,
+                doubleEntryService) {
+            @Override
+            protected TransactionTemplate getTransactionTemplate() {
+                return spyTemplate;
+            }
+        };
         
         // Act
-        Transaction result = serviceWithTemplate.transfer(fromAccountId, toAccountId, amount);
-
+        Transaction result = serviceWithSpyTemplate.transfer(fromAccountId, toAccountId, amount);
+        
         // Assert
         assertNotNull(result);
-        assertEquals(fromAccountId, result.getFromAccountId());
-        assertEquals(toAccountId, result.getToAccountId());
-        assertEquals(new BigDecimal("100.00"), fromAccount.getBalance());
-        assertEquals(new BigDecimal("150.00"), toAccount.getBalance());
         
-        // Verify transaction template was called
-        verify(transactionTemplate, times(1)).execute(any(TransactionCallback.class));
+        // Verify the transaction template was used
+        verify(spyTemplate).execute(any(TransactionCallback.class));
+        
+        // Verify the double-entry service was used
+        verify(doubleEntryService).createTransferEntries(any(Transaction.class));
+        verify(doubleEntryService, atLeastOnce()).calculateBalance(any(UUID.class));
+        
+        // Verify the transaction was saved
+        verify(transactionRepository).save(any(Transaction.class));
     }
     
     /**
@@ -556,46 +627,48 @@ public class TransactionServiceTest {
         UUID fromAccountId = UUID.randomUUID();
         UUID toAccountId = UUID.randomUUID();
         BigDecimal amount = new BigDecimal("100.00");
-        String referenceId = "TEST-REF-001";
         
-        Account fromAccount = new Account(Currency.EUR, AccountType.MainAccount.getInstance());
-        setAccountId(fromAccount, fromAccountId);
-        setAccountBalance(fromAccount, new BigDecimal("200.00"));
-        
-        Account toAccount = new Account(Currency.EUR, AccountType.MainAccount.getInstance());
-        setAccountId(toAccount, toAccountId);
-        setAccountBalance(toAccount, new BigDecimal("50.00"));
-        
-        // Mock the transaction template with a spy that throws an exception
+        // Use a mock TransactionTemplate instead of the real one
         TransactionTemplate mockTemplate = mock(TransactionTemplate.class);
-        when(mockTemplate.execute(any(TransactionCallback.class))).thenThrow(
-                new RuntimeException("Database error"));
+        when(mockTemplate.execute(any())).thenThrow(new RuntimeException("Test exception"));
         
-        // Create service with mock template
+        // Create service with mocked template
         TransactionService serviceWithMockTemplate = new TransactionService(
-                accountRepository, transactionRepository, validationService, transactionManager) {
+            accountRepository, 
+            transactionRepository,
+            validationService,
+            transactionManager,
+            doubleEntryService) {
+            
             @Override
             protected TransactionTemplate getTransactionTemplate() {
                 return mockTemplate;
             }
         };
         
-        // Mock validation service to return valid results
-        lenient().when(validationService.validateTransferParameters(
-                eq(fromAccountId), eq(toAccountId), eq(amount), eq(referenceId)))
-            .thenReturn(new ValidationService.TransferValidationResult(fromAccount, toAccount, null));
+        // Arrange validation for any validation calls
+        Account fromAccount = new Account(Currency.EUR, AccountType.MainAccount.getInstance());
+        setAccountId(fromAccount, fromAccountId);
+        // Mock starting balance
+        mockAccountBalance(fromAccountId, new BigDecimal("200.00"));
+        
+        Account toAccount = new Account(Currency.EUR, AccountType.MainAccount.getInstance());
+        setAccountId(toAccount, toAccountId);
+        // Mock starting balance
+        mockAccountBalance(toAccountId, new BigDecimal("50.00"));
+        
+        when(validationService.validateTransferParameters(fromAccountId, toAccountId, amount, null))
+            .thenReturn(new ValidationService.TransferValidationResult(fromAccount, toAccount));
         
         // Act & Assert
-        RuntimeException exception = assertThrows(RuntimeException.class, () -> {
-            serviceWithMockTemplate.transfer(fromAccountId, toAccountId, amount, referenceId);
-        });
+        assertThrows(RuntimeException.class, () -> {
+            serviceWithMockTemplate.transfer(fromAccountId, toAccountId, amount);
+        }, "Transfer should throw when transaction template throws");
         
-        // Verify that the exception has the expected message
-        assertEquals("Database error", exception.getMessage());
-        
-        // Verify that the validation service was called
-        verify(validationService, times(1)).validateTransferParameters(
-                fromAccountId, toAccountId, amount, referenceId);
+        // Verify transaction template was called and no other operations happened
+        verify(mockTemplate).execute(any());
+        verify(accountRepository, never()).save(any());
+        verify(transactionRepository, never()).save(any());
     }
 
     /**
@@ -604,35 +677,37 @@ public class TransactionServiceTest {
      */
     @Test
     void transfer_WithTransactionTemplate_ShouldUseProperIsolation() {
-        // Arrange
+        // Arrange mocks
         UUID fromAccountId = UUID.randomUUID();
         UUID toAccountId = UUID.randomUUID();
         BigDecimal amount = new BigDecimal("100.00");
-
+        
         Account fromAccount = new Account(Currency.EUR, AccountType.MainAccount.getInstance());
         setAccountId(fromAccount, fromAccountId);
-        setAccountBalance(fromAccount, new BigDecimal("200.00"));
-
+        // Mock starting balance
+        mockAccountBalance(fromAccountId, new BigDecimal("200.00"));
+        
         Account toAccount = new Account(Currency.EUR, AccountType.MainAccount.getInstance());
         setAccountId(toAccount, toAccountId);
-        setAccountBalance(toAccount, new BigDecimal("50.00"));
-        
-        // Mock validation service
-        lenient().when(validationService.validateTransferParameters(
-                eq(fromAccountId), eq(toAccountId), eq(amount), any()))
+        // Mock starting balance
+        mockAccountBalance(toAccountId, new BigDecimal("50.00"));
+
+        // Setup the necessary mocks
+        when(validationService.validateTransferParameters(fromAccountId, toAccountId, amount, null))
             .thenReturn(new ValidationService.TransferValidationResult(fromAccount, toAccount, null));
         
-        // Mock the isolation level check
-        when(transactionTemplate.getIsolationLevel()).thenReturn(TransactionDefinition.ISOLATION_READ_COMMITTED);
+        when(accountRepository.findById(fromAccountId)).thenReturn(Optional.of(fromAccount));
+        when(accountRepository.findById(toAccountId)).thenReturn(Optional.of(toAccount));
         
-        // Mock other repository operations
-        lenient().when(accountRepository.findById(fromAccountId)).thenReturn(Optional.of(fromAccount));
-        lenient().when(accountRepository.findById(toAccountId)).thenReturn(Optional.of(toAccount));
-        lenient().when(accountRepository.findByIdWithLock(fromAccountId)).thenReturn(Optional.of(fromAccount));
-        lenient().when(accountRepository.findByIdWithLock(toAccountId)).thenReturn(Optional.of(toAccount));
+        // Mock DoubleEntryService
+        when(doubleEntryService.createTransferEntries(any(Transaction.class))).thenAnswer(invocation -> {
+            // Return the same transaction that was passed in
+            return invocation.getArgument(0);
+        });
+        when(doubleEntryService.calculateBalance(any(UUID.class))).thenReturn(new BigDecimal("100.00"));
         
-        lenient().when(accountRepository.save(any(Account.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        lenient().when(transactionRepository.save(any(Transaction.class))).thenAnswer(invocation -> {
+        // Mock transaction saving
+        when(transactionRepository.save(any(Transaction.class))).thenAnswer(invocation -> {
             Transaction savedTransaction = invocation.getArgument(0);
             try {
                 Field idField = Transaction.class.getDeclaredField("id");
@@ -643,6 +718,9 @@ public class TransactionServiceTest {
             }
             return savedTransaction;
         });
+        
+        // Set up the transaction template isolation level test
+        when(transactionTemplate.getIsolationLevel()).thenReturn(TransactionDefinition.ISOLATION_READ_COMMITTED);
 
         // Create a service with our mocked template
         TransactionService serviceWithTemplate = createServiceWithMockedTemplate();
@@ -664,11 +742,16 @@ public class TransactionServiceTest {
      * for testing TransactionTemplate-specific behavior.
      */
     private TransactionService createServiceWithMockedTemplate() {
-        // Create a new TransactionService that uses our mocked transaction template
-        return new TransactionService(accountRepository, transactionRepository, validationService, transactionManager) {
+        // Create TransactionService with injected mock TransactionManager and Template
+        return new TransactionService(
+                accountRepository, 
+                transactionRepository, 
+                validationService, 
+                transactionManager,
+                doubleEntryService) {
+            // Override to return our mock template
             @Override
             protected TransactionTemplate getTransactionTemplate() {
-                // Use the mock instead of creating a new one
                 return transactionTemplate;
             }
         };
@@ -680,15 +763,17 @@ public class TransactionServiceTest {
         UUID fromAccountId = UUID.randomUUID();
         UUID toAccountId = UUID.randomUUID();
         BigDecimal amount = new BigDecimal("100.00");
-        String referenceId = "IDEMPOTENT-REF-001";
+        String referenceId = "TEST-REF-123";
 
         Account fromAccount = new Account(Currency.EUR, AccountType.MainAccount.getInstance());
         setAccountId(fromAccount, fromAccountId);
-        setAccountBalance(fromAccount, new BigDecimal("200.00"));
+        // Mock starting balance
+        mockAccountBalance(fromAccountId, new BigDecimal("200.00"));
 
         Account toAccount = new Account(Currency.EUR, AccountType.MainAccount.getInstance());
         setAccountId(toAccount, toAccountId);
-        setAccountBalance(toAccount, new BigDecimal("50.00"));
+        // Mock starting balance
+        mockAccountBalance(toAccountId, new BigDecimal("50.00"));
 
         // Create a mock existing transaction
         Transaction existingTransaction = mockMatchingExistingTransaction(

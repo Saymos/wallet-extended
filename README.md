@@ -212,6 +212,43 @@ The wallet application uses a sealed interface pattern for the `AccountType` hie
    - Singleton instances ensure reliable equality checks
    - The sealed nature provides compile-time guarantees about all possible subtypes
 
+### Double-Entry Bookkeeping Implementation
+
+The wallet application implements a double-entry bookkeeping system for all financial transactions:
+
+1. **What is Double-Entry Bookkeeping?**
+   - Each financial transaction creates at least two ledger entries (a debit and a credit)
+   - Total debits always equal total credits, maintaining balance in the system
+   - All account balances are calculated by summing their ledger entries rather than storing a single balance field
+   - Creates an immutable, auditable transaction history
+
+2. **Core Components**:
+   - `LedgerEntry`: An immutable entity representing a single debit or credit operation on an account
+   - `DoubleEntryService`: Service responsible for creating balanced entry pairs and calculating account balances
+   - `LedgerEntryRepository`: Provides data access for ledger entries with balance calculation support
+
+3. **Key Benefits**:
+   - **Financial Integrity**: Mathematical guarantee that money is neither created nor destroyed
+   - **Audit Trail**: Complete history of every transaction with immutable ledger entries
+   - **Error Prevention**: System consistency can be verified through balance checks
+   - **Reconciliation**: Accounts can be reconciled to detect and fix discrepancies
+   - **Historical Analysis**: Point-in-time balance calculations for any account
+
+4. **Performance Considerations**:
+   - **Memory Usage**: Storing all ledger entries requires more space than single balance fields
+   - **Query Optimization**: Indexing strategies on account_id and timestamp for efficient balance calculation
+   - **Caching Strategy**: Frequently accessed account balances can be cached for read performance
+   - **Batch Processing**: Bulk operations for high-volume transaction scenarios
+   - **Database Partitioning**: Historical ledger entries can be partitioned by time period for scalability
+
+5. **Implementation Details**:
+   - Accounts no longer store a direct balance field; all balances are calculated from ledger entries
+   - All transfers create matching debit and credit entries in a single atomic transaction
+   - Balance calculations use SQL aggregation functions for efficiency
+   - Reporting endpoints provide summarized views of ledger activity
+
+This approach significantly enhances the robustness of the financial system while providing a complete audit trail of all transactions.
+
 ## Production Considerations
 
 ### Audit Trail Implementation for Financial Systems

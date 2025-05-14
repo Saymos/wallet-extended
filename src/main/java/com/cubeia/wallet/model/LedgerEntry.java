@@ -18,11 +18,17 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 
 /**
- * Represents an immutable entry in the accounting ledger for a double-entry bookkeeping system.
- * <p>
- * Each transaction generates at least two ledger entries (one DEBIT and one CREDIT).
- * The sum of all DEBIT amounts in a transaction must equal the sum of all CREDIT amounts.
- * </p>
+ * Represents an immutable ledger entry in the double-entry bookkeeping system.
+ * 
+ * An immutable record of a DEBIT or CREDIT operation on an account. Every financial
+ * transaction creates balanced pairs of ledger entries to maintain the double-entry
+ * bookkeeping principle that the sum of debits equals the sum of credits.
+ * 
+ * See README.md "Double-Entry Bookkeeping Implementation" section for more details
+ * about the double-entry system architecture and benefits.
+ * 
+ * @see EntryType
+ * @see Transaction
  */
 @Entity
 @Table(name = "ledger_entries")

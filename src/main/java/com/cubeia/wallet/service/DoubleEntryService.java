@@ -17,12 +17,14 @@ import com.cubeia.wallet.repository.AccountRepository;
 import com.cubeia.wallet.repository.LedgerEntryRepository;
 
 /**
- * Service for managing double-entry bookkeeping operations.
- * <p>
- * This service implements the core functionality for a double-entry bookkeeping system,
- * where each financial transaction generates at least two ledger entries (one DEBIT and one CREDIT)
- * and the sum of all debits equals the sum of all credits.
- * </p>
+ * Core service implementing double-entry bookkeeping principles for the wallet system.
+ * 
+ * This service ensures financial integrity by creating balanced pairs of ledger entries
+ * (debits and credits) for all transactions, calculating account balances, and verifying
+ * the integrity of the double-entry system.
+ * 
+ * See README.md "Double-Entry Bookkeeping Implementation" section for detailed information
+ * about the architecture, benefits and performance considerations of the double-entry system.
  */
 @Service
 public class DoubleEntryService {
@@ -31,9 +33,9 @@ public class DoubleEntryService {
     private final AccountRepository accountRepository;
 
     /**
-     * Constructs a new DoubleEntryService with the required repositories.
+     * Creates a new DoubleEntryService instance.
      *
-     * @param ledgerEntryRepository repository for ledger entries
+     * @param ledgerEntryRepository The repository for accessing and storing ledger entries
      * @param accountRepository repository for accounts
      */
     public DoubleEntryService(LedgerEntryRepository ledgerEntryRepository, AccountRepository accountRepository) {
@@ -42,19 +44,25 @@ public class DoubleEntryService {
     }
     
     /**
-     * Creates the balanced ledger entries for a transaction.
+     * Creates a balanced pair of ledger entries for a transfer transaction.
      * <p>
-     * For a standard transfer transaction, this will create:
-     * - A DEBIT entry for the source account (fromAccount)
-     * - A CREDIT entry for the destination account (toAccount)
+     * For each transfer, this method creates:
+     * <ul>
+     *   <li>A DEBIT entry on the source account</li>
+     *   <li>A CREDIT entry on the destination account</li>
+     * </ul>
+     * </p>
+     * <p>
+     * This maintains the double-entry principle that for every transaction,
+     * the sum of debits equals the sum of credits.
      * </p>
      *
-     * @param transaction the transaction to create entries for
-     * @return the list of created ledger entries
-     * @throws AccountNotFoundException if any of the accounts doesn't exist
+     * @param transaction The transaction for which to create ledger entries
+     * @return The transaction with updated ledger entries
+     * @throws IllegalArgumentException if the transaction has invalid data
      */
     @Transactional
-    public List<LedgerEntry> createTransferEntries(Transaction transaction) {
+    public Transaction createTransferEntries(Transaction transaction) {
         // Verify accounts exist
         if (!accountRepository.existsById(transaction.getFromAccountId())) {
             throw new AccountNotFoundException(transaction.getFromAccountId());
@@ -64,7 +72,7 @@ public class DoubleEntryService {
             throw new AccountNotFoundException(transaction.getToAccountId());
         }
         
-        // Create debit entry for source account
+        // Create DEBIT entry on the source account
         LedgerEntry debitEntry = LedgerEntry.builder()
                 .accountId(transaction.getFromAccountId())
                 .transactionId(transaction.getId())
@@ -73,7 +81,7 @@ public class DoubleEntryService {
                 .description("Transfer to account " + transaction.getToAccountId())
                 .build();
         
-        // Create credit entry for destination account
+        // Create CREDIT entry on the destination account
         LedgerEntry creditEntry = LedgerEntry.builder()
                 .accountId(transaction.getToAccountId())
                 .transactionId(transaction.getId())
@@ -82,52 +90,56 @@ public class DoubleEntryService {
                 .description("Transfer from account " + transaction.getFromAccountId())
                 .build();
         
-        // Save and return both entries
-        return ledgerEntryRepository.saveAll(List.of(debitEntry, creditEntry));
+        // Save both entries to maintain the balanced double-entry
+        ledgerEntryRepository.save(debitEntry);
+        ledgerEntryRepository.save(creditEntry);
+        
+        return transaction;
     }
     
     /**
-     * Creates a direct credit entry for an account.
+     * Creates a system credit entry directly into an account without a corresponding debit.
      * <p>
-     * IMPORTANT: This method should only be used for system operations or testing,
-     * as it creates an unbalanced entry which violates double-entry bookkeeping principles.
-     * In a real double-entry system, every credit must have a corresponding debit.
+     * This method is typically used for initial funding or adjustments that don't come
+     * from another account within the system. In a complete implementation, this would
+     * normally debit a special system account to maintain the double-entry principle.
      * </p>
      *
-     * @param accountId the ID of the account to credit
-     * @param amount the amount to credit
-     * @param description a description of the operation
-     * @return the created ledger entry
-     * @throws AccountNotFoundException if the account doesn't exist
+     * @param accountId The account to credit
+     * @param amount The amount to credit (must be positive)
+     * @param description The description of this credit operation
+     * @throws IllegalArgumentException if parameters are invalid
      */
     @Transactional
-    public LedgerEntry createSystemCreditEntry(UUID accountId, BigDecimal amount, String description) {
-        if (!accountRepository.existsById(accountId)) {
-            throw new AccountNotFoundException(accountId);
+    public void createSystemCreditEntry(UUID accountId, BigDecimal amount, String description) {
+        if (accountId == null) {
+            throw new IllegalArgumentException("Account ID cannot be null");
+        }
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalArgumentException("Amount must be positive");
         }
         
-        // Create a system credit entry
-        LedgerEntry creditEntry = LedgerEntry.builder()
+        // Create a credit entry on the specified account
+        LedgerEntry entry = LedgerEntry.builder()
                 .accountId(accountId)
-                .transactionId(UUID.randomUUID())  // Generate a dummy transaction ID
+                .transactionId(UUID.randomUUID()) // Generate a transaction ID since this is a system operation
                 .entryType(EntryType.CREDIT)
                 .amount(amount)
                 .description(description)
                 .build();
         
-        // Save and return the entry
-        return ledgerEntryRepository.save(creditEntry);
+        ledgerEntryRepository.save(entry);
     }
     
     /**
-     * Calculates the current balance for an account based on its ledger entries.
+     * Calculates the current balance of an account by summing all ledger entries.
      * <p>
-     * The balance is calculated as the sum of all CREDIT entries minus the sum of all DEBIT entries.
+     * The balance is calculated as: sum(CREDIT entries) - sum(DEBIT entries).
+     * This method uses SQL aggregation functions for efficiency.
      * </p>
      *
-     * @param accountId the ID of the account to calculate balance for
-     * @return the current balance
-     * @throws AccountNotFoundException if the account doesn't exist
+     * @param accountId The account ID for which to calculate the balance
+     * @return The current balance of the account
      */
     @Transactional(readOnly = true)
     public BigDecimal calculateBalance(UUID accountId) {
@@ -139,23 +151,20 @@ public class DoubleEntryService {
     }
     
     /**
-     * Verifies that an account's balance matches the expected value.
+     * Verifies that an account's balance matches the expected amount.
      * <p>
-     * This is useful for integrity checks and reconciliation.
+     * This can be used to check for balance discrepancies or verify the 
+     * results of operations.
      * </p>
      *
-     * @param accountId the ID of the account to verify
-     * @param expectedBalance the expected balance value
-     * @throws AccountNotFoundException if the account doesn't exist
-     * @throws BalanceVerificationException if the actual balance doesn't match the expected balance
+     * @param accountId The account ID to check
+     * @param expectedBalance The expected balance
+     * @return true if the calculated balance matches the expected balance
      */
     @Transactional(readOnly = true)
-    public void verifyBalance(UUID accountId, BigDecimal expectedBalance) {
+    public boolean verifyBalance(UUID accountId, BigDecimal expectedBalance) {
         BigDecimal actualBalance = calculateBalance(accountId);
-        
-        if (actualBalance.compareTo(expectedBalance) != 0) {
-            throw new BalanceVerificationException(accountId, expectedBalance, actualBalance);
-        }
+        return actualBalance.compareTo(expectedBalance) == 0;
     }
     
     /**

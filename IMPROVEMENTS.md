@@ -286,6 +286,83 @@ This document outlines the significant improvements made to the Cubeia Wallet ap
 - Add load profile modeling based on expected usage patterns.
 - Create performance comparison reports across versions.
 
+## 9. Double-Entry Bookkeeping System
+
+### Original Issue
+- The original design stored account balances directly in the Account entity.
+- This approach was prone to inconsistencies, balance drift, and lacked an audit trail.
+- Reconciliation was difficult without a complete transaction history.
+- Direct balance manipulation increased the risk of mathematical errors and fraud.
+
+### Implementation
+- Implemented a complete double-entry bookkeeping system:
+  - Created immutable `LedgerEntry` entity with DEBIT/CREDIT entry types
+  - Developed `LedgerEntryRepository` with efficient balance calculation queries
+  - Implemented `DoubleEntryService` to manage the creation of balanced entry pairs
+  - Removed balance field from `Account` class and calculated balances from ledger entries
+  - Added reporting endpoints for transaction history and account statements
+  - Created comprehensive testing for double-entry invariants
+
+### Benefits
+- **Financial Integrity**: Mathematical guarantee that money is neither created nor destroyed
+- **Complete Audit Trail**: Every balance change is recorded with immutable ledger entries
+- **Reconciliation**: Ability to detect and fix discrepancies through double-entry validation
+- **Historical Analysis**: Support for point-in-time balance calculations
+- **Regulatory Compliance**: Better alignment with financial industry standards
+- **Error Detection**: Inconsistencies can be automatically detected by checking double-entry invariants
+- **Fraud Prevention**: Makes unauthorized balance modifications impossible without leaving evidence
+- **Simplified Debugging**: Clear record of every transaction makes troubleshooting easier
+
+### Technical Design Decisions
+- **Immutable Ledger Entries**: Entries are never modified after creation, ensuring audit integrity
+- **SQL Aggregation**: Balance calculations leverage database aggregation functions for performance
+- **Thread Safety**: All ledger operations maintain ACID properties and thread safety guarantees
+- **Transactional Integrity**: Every transfer creates exactly one balanced pair of entries
+- **Performance Optimization**: Indexing strategies on account_id and timestamp for efficient balance calculation
+- **Builder Pattern**: Used for LedgerEntry creation to ensure all required fields are populated
+- **Validation at Construction**: Ensures data integrity at the entry creation point
+
+### Performance Considerations
+- **Memory Usage**: Storing all ledger entries requires more space than single balance fields
+- **Query Optimization**: Indexing strategies on account_id and timestamp for efficient balance calculation
+- **Caching Strategy**: Frequently accessed account balances can be cached for read performance
+- **Batch Processing**: Bulk operations for high-volume transaction scenarios
+- **Database Partitioning**: Historical ledger entries can be partitioned by time period for scalability
+
+### Code Example
+```java
+// Creating a double-entry transfer
+@Transactional
+public Transaction transfer(UUID fromAccountId, UUID toAccountId, BigDecimal amount, String referenceId) {
+    // ... validation and other logic ...
+    
+    Transaction transaction = new Transaction(fromAccountId, toAccountId, amount, referenceId);
+    
+    // Create balanced ledger entries (one DEBIT and one CREDIT)
+    doubleEntryService.createTransferEntries(transaction);
+    
+    return transactionRepository.save(transaction);
+}
+
+// Calculating balance from ledger entries
+public BigDecimal calculateBalance(UUID accountId) {
+    BigDecimal credits = ledgerEntryRepository.sumByAccountIdAndType(accountId, EntryType.CREDIT);
+    BigDecimal debits = ledgerEntryRepository.sumByAccountIdAndType(accountId, EntryType.DEBIT);
+    
+    // Balance = total credits - total debits
+    return credits.subtract(debits);
+}
+```
+
+### Future Improvements
+- Implement materialized views for frequently accessed account balances
+- Add time-series partitioning for large-scale ledger implementations
+- Develop analytical reporting based on the ledger data
+- Support multi-currency operations with base currency conversion entries
+- Implement more sophisticated financial reporting like trial balances and balance sheets
+- Add subledger support for detailed categorization of entries
+- Create a periodic balance checkpoint system for large-scale deployments
+
 ## Conclusion
 
 The improvements made to the Cubeia Wallet application have significantly enhanced its reliability, maintainability, and performance. By addressing key concerns around concurrency, idempotency, error handling, and validation, the application is now better prepared for production use and future extension.

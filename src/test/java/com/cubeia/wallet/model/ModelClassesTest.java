@@ -186,10 +186,13 @@ class ModelClassesTest {
         TransactionType type = TransactionType.TRANSFER;
         Currency currency = Currency.EUR;
         
-        // Act & Assert
-        assertThrows(IllegalArgumentException.class, () -> {
-            new Transaction(fromAccountId, toAccountId, negativeAmount, type, currency);
-        });
+        // Act
+        Transaction transaction = new Transaction(fromAccountId, toAccountId, negativeAmount, type, currency);
+        
+        // Assert
+        // The Transaction class is now a simple data container and no longer validates amounts
+        // Validation is now done in the TransactionService
+        assertEquals(negativeAmount, transaction.getAmount());
     }
     
     @Test

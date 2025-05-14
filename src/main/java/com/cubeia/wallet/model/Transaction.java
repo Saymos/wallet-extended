@@ -2,7 +2,6 @@ package com.cubeia.wallet.model;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.Objects;
 import java.util.UUID;
 
 import org.hibernate.annotations.CreationTimestamp;
@@ -74,11 +73,6 @@ public class Transaction {
      */
     public Transaction(UUID fromAccountId, UUID toAccountId, BigDecimal amount, 
             TransactionType transactionType, Currency currency, String reference) {
-        
-        if (amount.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException("Transaction amount must be positive");
-        }
-        
         this.fromAccountId = fromAccountId;
         this.toAccountId = toAccountId;
         this.amount = amount;
@@ -102,75 +96,45 @@ public class Transaction {
     }
     
     /**
-     * Executes this transaction by updating the account balances.
-     * This method can be called with (fromAccount, toAccount) or with (transaction)
-     * to guarantee that the transaction record and actual balance changes remain consistent.
-     *
-     * @param fromAccount The source account 
-     * @param toAccount The destination account
-     * @throws IllegalArgumentException if the transaction can't be executed
+     * @deprecated This method is maintained only for test compatibility.
+     * In production code, use TransactionService.executeTransaction() instead.
      */
-    private void execute(Account fromAccount, Account toAccount) {
-        // Verify account IDs match this transaction
-        if (!fromAccount.getId().equals(fromAccountId) || !toAccount.getId().equals(toAccountId)) {
-            throw new IllegalArgumentException("""
-                Account IDs do not match transaction record:
-                Expected fromAccount ID: %s, Actual: %s
-                Expected toAccount ID: %s, Actual: %s
-                """.formatted(fromAccountId, fromAccount.getId(), toAccountId, toAccount.getId()));
-        }
-        
-        // Verify currencies match using pattern matching
-        if (fromAccount.getCurrency() != currency || toAccount.getCurrency() != currency) {
-            throw new IllegalArgumentException("""
-                Currency mismatch: Transaction and accounts must use the same currency
-                Transaction currency: %s
-                From account currency: %s
-                To account currency: %s
-                """.formatted(currency, fromAccount.getCurrency(), toAccount.getCurrency()));
-        }
-        
-        // Verify sufficient funds
-        BigDecimal fromNewBalance = fromAccount.getBalance().subtract(amount);
-        if (fromNewBalance.compareTo(BigDecimal.ZERO) < 0) {
-            throw new IllegalArgumentException("""
-                Insufficient funds in account: %s
-                Current balance: %s
-                Required amount: %s
-                """.formatted(fromAccountId, fromAccount.getBalance(), amount));
-        }
-        
-        // Execute the transaction
-        fromAccount.updateBalance(fromNewBalance);
-        toAccount.updateBalance(toAccount.getBalance().add(amount));
-    }
-    
-    /**
-     * Self-executes this transaction.
-     * This method exists to support clear, intentional code like transaction.execute(transaction),
-     * which makes it obvious that the transaction object being executed matches the record being saved.
-     * 
-     * @param transaction This transaction instance (should be the same as 'this')
-     * @param fromAccount The source account
-     * @param toAccount The destination account
-     * @throws IllegalArgumentException if transaction parameter isn't the same as 'this'
-     */
+    @Deprecated
     public void execute(Transaction transaction, Account fromAccount, Account toAccount) {
-        // Verify it's the same transaction using pattern matching
+        // Verify it's the same transaction
         if (!(transaction instanceof Transaction t && t == this)) {
             throw new IllegalArgumentException("Transaction parameter must be the same instance as 'this'");
         }
-
-        if (!Objects.equals(fromAccount.getId(), fromAccountId) || !Objects.equals(toAccount.getId(), toAccountId)) {
-            throw new IllegalArgumentException("""
-                Account IDs do not match transaction record:
-                Expected fromAccount ID: %s, Actual: %s
-                Expected toAccount ID: %s, Actual: %s
-                """.formatted(fromAccountId, fromAccount.getId(), toAccountId, toAccount.getId()));
+        
+        // Verify account IDs match this transaction
+        if (!fromAccount.getId().equals(fromAccountId) || !toAccount.getId().equals(toAccountId)) {
+            throw new IllegalArgumentException(String.format(
+                "Account IDs do not match transaction record: Expected fromAccount ID: %s, Actual: %s, "
+                + "Expected toAccount ID: %s, Actual: %s",
+                fromAccountId, fromAccount.getId(), toAccountId, toAccount.getId()));
         }
         
-        // Execute normally
-        execute(fromAccount, toAccount);
+        // Verify currencies match
+        if (fromAccount.getCurrency() != currency || toAccount.getCurrency() != currency) {
+            throw new IllegalArgumentException(String.format(
+                "Currency mismatch: Transaction and accounts must use the same currency. "
+                + "Transaction currency: %s, From account currency: %s, To account currency: %s",
+                currency, fromAccount.getCurrency(), toAccount.getCurrency()));
+        }
+        
+        // Calculate the new balances
+        BigDecimal fromNewBalance = fromAccount.getBalance().subtract(amount);
+        
+        // Verify sufficient funds in source account
+        if (fromNewBalance.compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalArgumentException(String.format(
+                "Insufficient funds in account: %s, Current balance: %s, Required amount: %s",
+                fromAccountId, fromAccount.getBalance(), amount));
+        }
+        
+        // Update the balances
+        fromAccount.updateBalance(fromNewBalance);
+        toAccount.updateBalance(toAccount.getBalance().add(amount));
     }
     
     public UUID getId() {

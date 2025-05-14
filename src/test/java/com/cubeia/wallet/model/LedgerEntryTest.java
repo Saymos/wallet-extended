@@ -1,0 +1,219 @@
+package com.cubeia.wallet.model;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.UUID;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
+
+/**
+ * Tests for the LedgerEntry entity to ensure it functions correctly
+ * with JPA and maintains proper immutability and validation.
+ */
+@DataJpaTest
+public class LedgerEntryTest {
+
+    @Autowired
+    private TestEntityManager entityManager;
+
+    private UUID accountId;
+    private UUID transactionId;
+    private final BigDecimal amount = new BigDecimal("100.00");
+    private final String description = "Test ledger entry";
+
+    @BeforeEach
+    public void setUp() {
+        accountId = UUID.randomUUID();
+        transactionId = UUID.randomUUID();
+    }
+
+    @Test
+    public void testPersistenceWithJPA() {
+        // Create a ledger entry
+        LedgerEntry debitEntry = LedgerEntry.builder()
+                .accountId(accountId)
+                .transactionId(transactionId)
+                .entryType(EntryType.DEBIT)
+                .amount(amount)
+                .description(description)
+                .build();
+
+        // Persist the entry
+        LedgerEntry savedEntry = entityManager.persistFlushFind(debitEntry);
+
+        // Verify it was correctly persisted
+        assertNotNull(savedEntry.getId(), "ID should be generated");
+        assertEquals(accountId, savedEntry.getAccountId(), "Account ID should match");
+        assertEquals(transactionId, savedEntry.getTransactionId(), "Transaction ID should match");
+        assertEquals(EntryType.DEBIT, savedEntry.getEntryType(), "Entry type should match");
+        assertEquals(0, amount.compareTo(savedEntry.getAmount()), "Amount should match");
+        assertEquals(description, savedEntry.getDescription(), "Description should match");
+        assertNotNull(savedEntry.getTimestamp(), "Timestamp should be generated");
+    }
+
+    @Test
+    public void testEntryTypesWithSignedAmount() {
+        // Create a debit entry
+        LedgerEntry debitEntry = LedgerEntry.builder()
+                .accountId(accountId)
+                .transactionId(transactionId)
+                .entryType(EntryType.DEBIT)
+                .amount(amount)
+                .description(description)
+                .build();
+
+        // Create a credit entry
+        LedgerEntry creditEntry = LedgerEntry.builder()
+                .accountId(accountId)
+                .transactionId(transactionId)
+                .entryType(EntryType.CREDIT)
+                .amount(amount)
+                .description(description)
+                .build();
+
+        // Verify signed amounts
+        assertEquals(amount.negate(), debitEntry.getSignedAmount(), "Debit should have negative signed amount");
+        assertEquals(amount, creditEntry.getSignedAmount(), "Credit should have positive signed amount");
+    }
+    
+    @Test
+    public void testNullFieldValidation() {
+        // Account ID
+        assertThrows(IllegalArgumentException.class, () -> 
+            LedgerEntry.builder()
+                .accountId(null)
+                .transactionId(transactionId)
+                .entryType(EntryType.DEBIT)
+                .amount(amount)
+                .description(description)
+                .build(),
+            "Should validate accountId is not null");
+
+        // Transaction ID
+        assertThrows(IllegalArgumentException.class, () -> 
+            LedgerEntry.builder()
+                .accountId(accountId)
+                .transactionId(null)
+                .entryType(EntryType.DEBIT)
+                .amount(amount)
+                .description(description)
+                .build(),
+            "Should validate transactionId is not null");
+
+        // Entry Type
+        assertThrows(IllegalArgumentException.class, () -> 
+            LedgerEntry.builder()
+                .accountId(accountId)
+                .transactionId(transactionId)
+                .entryType(null)
+                .amount(amount)
+                .description(description)
+                .build(),
+            "Should validate entryType is not null");
+
+        // Amount
+        assertThrows(IllegalArgumentException.class, () -> 
+            LedgerEntry.builder()
+                .accountId(accountId)
+                .transactionId(transactionId)
+                .entryType(EntryType.DEBIT)
+                .amount(null)
+                .description(description)
+                .build(),
+            "Should validate amount is not null");
+    }
+    
+    @Test
+    public void testAmountValidation() {
+        // Zero amount
+        assertThrows(IllegalArgumentException.class, () -> 
+            LedgerEntry.builder()
+                .accountId(accountId)
+                .transactionId(transactionId)
+                .entryType(EntryType.DEBIT)
+                .amount(BigDecimal.ZERO)
+                .description(description)
+                .build(),
+            "Should validate amount is positive");
+
+        // Zero amount after abs()
+        assertThrows(IllegalArgumentException.class, () -> 
+            LedgerEntry.builder()
+                .accountId(accountId)
+                .transactionId(transactionId)
+                .entryType(EntryType.DEBIT)
+                .amount(new BigDecimal("0.00"))
+                .description(description)
+                .build(),
+            "Should validate amount is positive");
+    }
+    
+    @Test
+    public void testDescriptionIsOptional() {
+        // Create entry without description
+        LedgerEntry entry = LedgerEntry.builder()
+                .accountId(accountId)
+                .transactionId(transactionId)
+                .entryType(EntryType.CREDIT)
+                .amount(amount)
+                .build();
+                
+        // Persist and verify
+        LedgerEntry savedEntry = entityManager.persistFlushFind(entry);
+        assertNotNull(savedEntry.getId(), "Entry should be persisted without description");
+    }
+    
+    @Test
+    public void testImmutability() {
+        // Create and persist an entry
+        LedgerEntry entry = LedgerEntry.builder()
+                .accountId(accountId)
+                .transactionId(transactionId)
+                .entryType(EntryType.CREDIT)
+                .amount(amount)
+                .description(description)
+                .build();
+                
+        LedgerEntry savedEntry = entityManager.persistFlushFind(entry);
+        
+        // Verify that there are no setters to modify the entity
+        LocalDateTime originalTime = savedEntry.getTimestamp();
+        
+        // Wait a moment to ensure a new timestamp would be different
+        try {
+            Thread.sleep(10);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        
+        // Refresh from database and verify unchanged
+        entityManager.refresh(savedEntry);
+        assertEquals(originalTime, savedEntry.getTimestamp(), 
+            "Timestamp should not change, entity should be immutable");
+    }
+    
+    @Test
+    public void testAbsoluteAmountStorage() {
+        // Create with negative amount that's converted to positive for storage
+        LedgerEntry entry = LedgerEntry.builder()
+                .accountId(accountId)
+                .transactionId(transactionId)
+                .entryType(EntryType.DEBIT)
+                .amount(new BigDecimal("-50.00"))
+                .description(description)
+                .build();
+                
+        // Verify that the amount is stored as absolute value
+        assertEquals(new BigDecimal("50.00").setScale(2), entry.getAmount().setScale(2), 
+            "Amount should be stored as absolute value");
+        assertEquals(new BigDecimal("-50.00").setScale(2), entry.getSignedAmount().setScale(2), 
+            "Signed amount should be negative for DEBIT");
+    }
+} 

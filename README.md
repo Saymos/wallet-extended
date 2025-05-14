@@ -537,4 +537,43 @@ The functionality previously tested with complex mocking techniques is now fully
 - To run specific tests: `mvn test -Dtest=TestClassName`
 - To generate coverage report: `mvn clean verify`
 
-The coverage report is generated in `target/site/jacoco/index.html` and can be viewed in any browser. 
+The coverage report is generated in `target/site/jacoco/index.html` and can be viewed in any browser.
+
+### Double-Entry Bookkeeping Performance Considerations
+
+When implementing a double-entry bookkeeping system for a financial application like this wallet service, several performance aspects must be considered:
+
+1. **Database Size and Growth**:
+   - Each transaction requires at least two ledger entries (debit and credit)
+   - Historical ledger entries are never modified, creating an append-only pattern
+   - Database size grows linearly with transaction volume
+   - Partition strategies may be necessary for very high-volume systems
+
+2. **Balance Calculation Efficiency**:
+   - Computing balances requires aggregating all ledger entries for an account
+   - Without optimization, this becomes increasingly expensive as transaction count grows
+   - Potential optimization strategies:
+     * Materialized views for balance snapshots
+     * Periodic balance checkpoints/snapshots
+     * Caching of frequently accessed account balances
+     * Efficient indexing on account ID and entry type columns
+
+3. **Query Optimization**:
+   - Specialized indexes for common query patterns
+   - Denormalized summary tables for reporting purposes
+   - Consider time-based partitioning for ledger entries table
+   - Optimize for read scalability using read replicas
+
+4. **Caching Considerations**:
+   - Cache invalidation strategy for updated account balances
+   - Time-to-live settings appropriate for business requirements
+   - Cache distribution in clustered environments
+   - Balance between memory usage and cache hit rates
+
+5. **Scaling Approaches**:
+   - Vertical scaling for balance calculation workloads
+   - Horizontal scaling for transaction processing
+   - Consider account-based sharding for very large systems
+   - Separate read and write workloads (CQRS pattern)
+
+These considerations should be evaluated based on the expected transaction volume, account count, and read/write patterns of the specific deployment scenario. 

@@ -212,6 +212,308 @@ The wallet application uses a sealed interface pattern for the `AccountType` hie
    - Singleton instances ensure reliable equality checks
    - The sealed nature provides compile-time guarantees about all possible subtypes
 
+## Production Considerations
+
+### Audit Trail Implementation for Financial Systems
+
+1. **Comprehensive Audit Requirements**:
+   - Every financial transaction must be immutable and traceable
+   - Audit records should include who initiated the transaction, when, from where, and all transaction details
+   - Changes to account status or configuration should also be audited
+
+2. **Implementation Approaches**:
+   - Store audit events in a separate audit table with foreign keys to transactions
+   - Use database triggers or event listeners to capture audit data automatically
+   - Consider storing audit logs in a dedicated audit database for regulatory compliance
+   - Implement digital signatures for transaction records to prevent tampering
+
+3. **Technologies to Consider**:
+   - Append-only event stores for immutable transaction history
+   - Spring Data Envers for automated auditing of JPA entities
+   - Blockchain-based solutions for high-security requirements
+
+### Logging Requirements for Financial Transactions
+
+1. **Transaction Logging**:
+   - Log detailed information for all financial operations
+   - Include transaction IDs, account IDs, amounts, timestamps, and reference IDs
+   - Structure logs in a consistent format for automated analysis
+   - Ensure logs can be correlated across distributed systems
+
+2. **Compliance Logging**:
+   - Maintain logs according to financial regulatory requirements (PCI-DSS, SOX, etc.)
+   - Implement log rotation and archiving policies
+   - Ensure logs are tamper-evident and cannot be modified
+
+3. **Security Logging**:
+   - Track authentication/authorization events
+   - Log all suspicious activities and access attempts
+   - Implement alerting based on log patterns
+
+4. **Implementation**:
+   - Use a structured logging framework (SLF4J with Logback)
+   - Configure MDC (Mapped Diagnostic Context) to include transaction IDs
+   - Consider a centralized logging system like ELK Stack for production
+
+### Performance Considerations for High Concurrency
+
+1. **Database Optimization**:
+   - Properly index transaction tables, especially on frequently queried columns
+   - Consider separate read/write databases (CQRS pattern) for high traffic
+   - Implement connection pooling with appropriate sizing
+
+2. **Caching Strategies**:
+   - Cache account balances for read-heavy scenarios
+   - Use distributed caches (Redis/Hazelcast) in a clustered environment
+   - Implement cache invalidation strategies for transaction consistency
+
+3. **Thread Management**:
+   - Optimize thread pool configurations for expected workloads
+   - Monitor thread utilization under peak loads
+   - Consider non-blocking I/O for high-throughput scenarios
+
+4. **Load Testing**:
+   - Test concurrent transfer scenarios with realistic traffic patterns
+   - Measure response times and throughput under various loads
+   - Identify bottlenecks and optimize accordingly
+
+### Transaction Isolation Levels and Their Trade-offs
+
+1. **READ UNCOMMITTED**:
+   - Lowest isolation level; allows dirty reads
+   - **Pros**: Highest concurrency, minimal locking overhead
+   - **Cons**: Inconsistent reads, unsuitable for financial transactions
+   - **Use case**: Fast approximate reporting where accuracy isn't critical
+
+2. **READ COMMITTED** (Used in our application):
+   - Prevents dirty reads but allows non-repeatable reads and phantom reads
+   - **Pros**: Good balance of consistency and performance
+   - **Cons**: May read different data if queried multiple times within the same transaction
+   - **Use case**: General-purpose database operations where immediate consistency is important
+
+3. **REPEATABLE READ**:
+   - Prevents dirty and non-repeatable reads but allows phantom reads
+   - **Pros**: Higher consistency guarantees
+   - **Cons**: Increased locking, potential for deadlocks, reduced concurrency
+   - **Use case**: Financial reporting where consistent reads are needed
+
+4. **SERIALIZABLE**:
+   - Highest isolation level; prevents all concurrency anomalies
+   - **Pros**: Complete data consistency, suitable for complex financial operations
+   - **Cons**: Significant performance impact, high potential for deadlocks
+   - **Use case**: Critical financial operations requiring perfect consistency
+
+Our application uses **READ COMMITTED** isolation with explicit pessimistic locking to provide a balance between performance and consistency appropriate for a wallet service.
+
+### Clustering and Horizontal Scaling Approaches
+
+1. **Stateless Application Design**:
+   - Ensure the wallet service is stateless for horizontal scaling
+   - Store all session data in a distributed cache or database
+   - Use sticky sessions for performance when needed
+
+2. **Database Clustering**:
+   - Implement master-slave replication for read scalability
+   - Consider sharding for transaction and account data based on account ID
+   - Use a distributed transaction manager for cross-shard transactions
+
+3. **Load Balancing**:
+   - Deploy multiple service instances behind a load balancer
+   - Configure health checks to detect and remove unhealthy instances
+   - Implement appropriate session affinity policies
+
+4. **Distributed Locking**:
+   - Replace in-memory locks with distributed lock solutions (Redis, ZooKeeper)
+   - Implement lock timeouts to prevent deadlocks in distributed environments
+   - Consider optimistic locking for read-heavy workloads
+
+5. **Monitoring and Auto-scaling**:
+   - Implement metrics collection for service health and performance
+   - Set up auto-scaling based on load patterns
+   - Configure alerts for abnormal behavior
+
+### The Use of Virtual Threads and Their Benefits
+
+1. **What Are Virtual Threads?**:
+   - Lightweight user-mode threads introduced in Java 21
+   - Managed by the JVM rather than the operating system
+   - Enable high-concurrency applications without thread pool tuning
+
+2. **Benefits for a Wallet Application**:
+   - **Improved Throughput**: Can handle many more concurrent transactions
+   - **Reduced Memory Footprint**: Virtual threads use significantly less memory than platform threads
+   - **Simplified Concurrency Model**: No need for complex thread pool configurations
+   - **Better Resource Utilization**: Reduces wasted CPU time on blocked threads
+   - **Simplified Code**: Can write straightforward blocking code that scales well
+
+3. **Implementation in Our Application**:
+   - Enabled via `spring.threads.virtual.enabled=true` in application properties
+   - No additional code changes needed when using Spring Boot 3.4+
+   - Each incoming request automatically gets its own virtual thread
+   - Allows the application to handle thousands of concurrent transfers efficiently
+
+4. **Considerations**:
+   - Thread-local variables behave differently with virtual threads
+   - Some libraries may not be fully compatible with virtual threads
+   - Debugging can be more complex with thousands of threads
+
+### Security Considerations for a Financial API
+
+1. **Authentication and Authorization**:
+   - Implement strong authentication (OAuth 2.0, JWT, mTLS)
+   - Use role-based access control for different API operations
+   - Enforce IP whitelisting for sensitive operations
+   - Implement MFA for high-value transactions
+
+2. **Data Protection**:
+   - Encrypt sensitive data at rest and in transit (TLS 1.3+)
+   - Implement proper key management policies
+   - Use parameterized queries to prevent SQL injection
+   - Sanitize all inputs to prevent XSS and other injection attacks
+
+3. **API Security**:
+   - Implement rate limiting to prevent DoS attacks
+   - Set up API gateways with advanced security features
+   - Use API keys or client certificates for service-to-service communication
+   - Validate all request parameters and enforce strict API contracts
+
+4. **Transaction Security**:
+   - Implement transaction signing for non-repudiation
+   - Use idempotency keys to prevent duplicate transactions
+   - Set up transaction amount limits and velocity checks
+   - Implement fraud detection algorithms
+
+5. **Compliance**:
+   - Ensure GDPR compliance for personal data
+   - Implement PCI-DSS requirements for payment processing
+   - Follow financial industry regulations (SOX, PSD2, etc.)
+   - Regular security audits and penetration testing
+
+## Architecture Comparisons
+
+### Pessimistic Locking vs. Optimistic Locking
+
+#### Pessimistic Locking (Current Implementation)
+
+**Pros**:
+- Guarantees data consistency in concurrent environments
+- Prevents conflicts before they occur
+- Simpler error handling (no retry logic needed)
+- Better for high-contention scenarios with frequent conflicts
+
+**Cons**:
+- Can lead to reduced throughput under high concurrency
+- Potential for deadlocks if not managed properly
+- Higher database resource utilization
+- Locks may be held longer than necessary
+
+**Implementation in our application**:
+- Uses `@Lock(LockModeType.PESSIMISTIC_WRITE)` with JPA
+- Accounts are locked in a consistent order to prevent deadlocks
+- Appropriate for a financial application prioritizing data integrity
+
+#### Optimistic Locking (Alternative Approach)
+
+**Pros**:
+- Higher throughput potential in low-contention scenarios
+- No database locks held during the transaction
+- Reduced resource utilization
+- No deadlock potential
+
+**Cons**:
+- Requires retry logic to handle conflicts
+- May lead to starvation under high contention
+- More complex error handling for conflict resolution
+- Can create a poor user experience with repeated retries
+
+**How it would be implemented**:
+- Add a `@Version` field to the Account entity
+- Use standard JPA operations which automatically check version
+- Implement retry logic when OptimisticLockExceptions occur
+- Better suited for read-heavy workloads with infrequent updates
+
+### TransactionTemplate vs @Transactional Annotation
+
+#### TransactionTemplate (Current Implementation)
+
+**Pros**:
+- More explicit and fine-grained control over transaction boundaries
+- Allows for different transaction settings within a single method
+- Makes transaction scope visually clearer in the code
+- Can potentially reduce lock holding time by minimizing transaction scope
+
+**Cons**:
+- More verbose code compared to annotations
+- Requires explicit template creation and configuration
+- May lead to boilerplate code in complex applications
+
+**Implementation in our application**:
+```java
+return getTransactionTemplate().execute(status -> {
+    // Execute transaction logic here
+    executeTransaction(transaction);
+    return transactionRepository.save(transaction);
+});
+```
+
+#### @Transactional Annotation
+
+**Pros**:
+- Cleaner, more declarative code
+- Automatic management of transaction boundaries
+- Consistent behavior across all annotated methods
+- Less boilerplate code
+
+**Cons**:
+- Less explicit control over transaction boundaries
+- Transaction scope may be larger than necessary
+- May hold locks longer than needed, reducing concurrency
+- Class-level annotations can lead to unexpected transaction behavior
+
+**How it would be implemented**:
+```java
+@Transactional
+public Transaction transfer(UUID fromAccountId, UUID toAccountId, BigDecimal amount) {
+    // Transaction logic here
+}
+```
+
+## Thread Safety Guarantees
+
+The Cubeia Wallet application ensures thread safety through several complementary mechanisms:
+
+1. **Deadlock Prevention with Consistent Lock Ordering**:
+   - Accounts are always locked in a consistent order based on their IDs
+   - If `fromAccountId <= toAccountId`, locks are acquired in the natural order (from → to)
+   - If `fromAccountId > toAccountId`, locks are acquired in the reversed order (to → first)
+   - This approach guarantees that concurrent transfers cannot deadlock
+
+2. **Database-Level Pessimistic Locking**:
+   - The `findByIdWithLock` method uses `LockModeType.PESSIMISTIC_WRITE`
+   - This acquires exclusive database locks, preventing concurrent modifications
+   - Locks are held until the transaction commits, ensuring atomicity
+
+3. **Transaction Isolation**:
+   - `READ_COMMITTED` isolation level prevents dirty reads
+   - Combined with pessimistic locking, this ensures consistency
+   - Transactions are managed using `TransactionTemplate` with properly defined boundaries
+
+4. **Pre-Validation for Early Failure**:
+   - Validation happens before acquiring expensive locks where possible
+   - This reduces lock contention and improves throughput
+   - The `ValidationService` centralizes this logic for consistency
+
+5. **Atomic Operations**:
+   - Account balance updates and transaction records are created in a single atomic transaction
+   - Either all changes succeed or all fail and roll back
+   - This maintains financial double-entry integrity
+
+These mechanisms together ensure that:
+- Account balances are always correct
+- Money is neither created nor destroyed
+- Concurrent transfers complete without conflicts
+- The system remains responsive under high concurrency
+
 ## Test Coverage and Strategy
 
 The wallet application maintains high test coverage (94%) to ensure reliability and robustness. The test approach includes:

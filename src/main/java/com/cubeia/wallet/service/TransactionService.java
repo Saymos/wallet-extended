@@ -20,6 +20,7 @@ import com.cubeia.wallet.model.Transaction;
 import com.cubeia.wallet.model.TransactionType;
 import com.cubeia.wallet.repository.AccountRepository;
 import com.cubeia.wallet.repository.TransactionRepository;
+import com.cubeia.wallet.service.ValidationService.TransferValidationResult;
 
 /**
  * Service for managing account transactions.
@@ -29,19 +30,39 @@ public class TransactionService {
 
     private final AccountRepository accountRepository;
     private final TransactionRepository transactionRepository;
+    private final ValidationService validationService;
     private final TransactionTemplate transactionTemplate;
 
     public TransactionService(
             AccountRepository accountRepository, 
             TransactionRepository transactionRepository,
+            ValidationService validationService,
             PlatformTransactionManager transactionManager) {
         this.accountRepository = accountRepository;
         this.transactionRepository = transactionRepository;
+        this.validationService = validationService;
         
         // Initialize TransactionTemplate with appropriate settings
-        this.transactionTemplate = new TransactionTemplate(transactionManager);
-        this.transactionTemplate.setIsolationLevel(TransactionDefinition.ISOLATION_READ_COMMITTED);
-        this.transactionTemplate.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRED);
+        this.transactionTemplate = createTransactionTemplate(transactionManager);
+    }
+    
+    /**
+     * Creates and configures a TransactionTemplate.
+     * This method is separate to allow mocking in tests.
+     */
+    private TransactionTemplate createTransactionTemplate(PlatformTransactionManager transactionManager) {
+        TransactionTemplate template = new TransactionTemplate(transactionManager);
+        template.setIsolationLevel(TransactionDefinition.ISOLATION_READ_COMMITTED);
+        template.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRED);
+        return template;
+    }
+    
+    /**
+     * Returns the transaction template.
+     * Protected visibility to allow mocking in tests.
+     */
+    protected TransactionTemplate getTransactionTemplate() {
+        return transactionTemplate;
     }
 
     /**
@@ -84,12 +105,7 @@ public class TransactionService {
      * @throws CurrencyMismatchException if currencies don't match
      */
     public Transaction transfer(UUID fromAccountId, UUID toAccountId, BigDecimal amount, String referenceId) {
-        // Validate amount
-        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
-            throw InvalidTransactionException.forNonPositiveAmount();
-        }
-        
-        // Check for existing transaction with the same reference ID - this doesn't need to be in a transaction
+        // Check for existing transaction with the same reference ID for idempotency
         if (referenceId != null && !referenceId.isEmpty()) {
             Optional<Transaction> existingTransaction = transactionRepository.findByReference(referenceId);
             if (existingTransaction.isPresent()) {
@@ -107,16 +123,12 @@ public class TransactionService {
             }
         }
         
-        // Pre-validation: Verify accounts exist
-        Account fromAccount = accountRepository.findById(fromAccountId)
-            .orElseThrow(() -> new AccountNotFoundException(fromAccountId));
-        Account toAccount = accountRepository.findById(toAccountId)
-            .orElseThrow(() -> new AccountNotFoundException(toAccountId));
+        // Pre-validate accounts and check for currency mismatches
+        TransferValidationResult validationResult = validationService.validateTransferParameters(
+            fromAccountId, toAccountId, amount, referenceId);
         
-        // Pre-validation: Check for currency mismatch (doesn't need a lock)
-        if (!fromAccount.getCurrency().equals(toAccount.getCurrency())) {
-            throw CurrencyMismatchException.forTransfer(fromAccount.getCurrency(), toAccount.getCurrency());
-        }
+        Account fromAccount = validationResult.fromAccount();
+        Account toAccount = validationResult.toAccount();
         
         // Pre-validation: Check for sufficient funds
         // This is a preliminary check that will be verified again within the transaction
@@ -141,7 +153,7 @@ public class TransactionService {
         );
         
         // Execute only the critical section within a transaction
-        return transactionTemplate.execute(status -> {
+        return getTransactionTemplate().execute(status -> {
             // Execute the transaction using our method
             // This handles account locking, validation, and balance updates
             executeTransaction(transaction);

@@ -114,6 +114,31 @@ curl -X GET http://localhost:8080/accounts/{accountId}/transactions
 - Detailed error responses with appropriate HTTP status codes
 - Full test suite including unit tests and integration tests with concurrency testing
 
+### Validation Service Architecture
+
+The wallet application uses a dedicated `ValidationService` for centralizing validation logic:
+
+1. **Benefits of a Centralized Validation Service**:
+   - **DRY Principle**: Eliminates code duplication across controllers and service layers
+   - **Separation of Concerns**: Cleanly separates validation logic from business processing
+   - **Pre-Validation**: Allows for early validation before acquiring expensive resources like database locks
+   - **Testability**: Makes validation rules easier to test in isolation
+   - **Consistent Error Messages**: Ensures the same validation failures produce consistent error responses
+   - **Security**: Centralizes input validation, reducing the risk of security vulnerabilities
+
+2. **Implementation Approach**:
+   - The `ValidationService` encapsulates validation logic for all transaction operations
+   - It performs validation checks including account existence, currency matching, and amount validation
+   - Returns validated entities to avoid redundant database lookups
+   - Throws specific, descriptive exceptions when validation fails
+
+3. **Performance Considerations**:
+   - Pre-validation reduces database contention by failing early before acquiring locks
+   - Validation results include necessary entity objects to avoid redundant queries
+   - Careful design ensures validation doesn't duplicate work performed in the transaction processing
+
+This approach significantly improves the maintainability and robustness of the application while providing a clean separation between validation concerns and core business logic.
+
 ### Idempotency Support
 
 The wallet application implements idempotency for transfer operations:

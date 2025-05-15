@@ -72,6 +72,7 @@ public class ValidationIntegrationTest {
                 fromAccount.getId(),
                 toAccount.getId(),
                 new BigDecimal("100.00"),
+                null,
                 null);
 
         // when
@@ -103,6 +104,7 @@ public class ValidationIntegrationTest {
                 fromAccount.getId(),
                 toAccount.getId(),
                 new BigDecimal("100.00"),
+                null,
                 null);
 
         // when
@@ -141,7 +143,8 @@ public class ValidationIntegrationTest {
                 account1.getId(),
                 account2.getId(),
                 new BigDecimal("100.00"),
-                referenceId);
+                referenceId,
+                null);
         
         restTemplate.postForEntity(getBaseUrl() + "/transfers", transferRequest1, Map.class);
         
@@ -150,7 +153,8 @@ public class ValidationIntegrationTest {
                 account1.getId(),
                 account3.getId(),  // Different destination
                 new BigDecimal("100.00"),
-                referenceId);
+                referenceId,
+                null);
 
         // when
         ResponseEntity<Map> response = restTemplate.postForEntity(
@@ -174,6 +178,7 @@ public class ValidationIntegrationTest {
                 nonExistentAccountId,
                 toAccount.getId(),
                 new BigDecimal("100.00"),
+                null,
                 null);
 
         // when
@@ -205,6 +210,7 @@ public class ValidationIntegrationTest {
                 fromAccount.getId(),
                 toAccount.getId(),
                 new BigDecimal("100.00"),
+                null,
                 null);
 
         // when

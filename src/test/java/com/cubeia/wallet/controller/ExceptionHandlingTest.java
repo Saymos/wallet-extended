@@ -137,6 +137,7 @@ public class ExceptionHandlingTest {
                 sender.getId(),
                 receiver.getId(),
                 new BigDecimal("100.00"),
+                null,
                 null);
         
         // when - attempting the transfer
@@ -164,6 +165,7 @@ public class ExceptionHandlingTest {
                 sender.getId(),
                 receiver.getId(),
                 BigDecimal.ZERO,
+                null,
                 null);
         
         // when - attempting the transfer
@@ -197,6 +199,7 @@ public class ExceptionHandlingTest {
                 sender.getId(),
                 receiver.getId(),
                 new BigDecimal("50.00"),
+                null,
                 null);
         
         // when - attempting the transfer

@@ -74,7 +74,7 @@ public class DirectExecutionExceptionTest {
         // This should directly trigger the InsufficientFundsException 
         // when transaction.execute is called inside transferService
         InsufficientFundsException exception = assertThrows(InsufficientFundsException.class, () -> {
-            transactionService.transfer(fromAccount.getId(), toAccount.getId(), amount);
+            transactionService.transfer(fromAccount.getId(), toAccount.getId(), amount, null, null);
         });
         
         assertTrue(exception.getMessage().contains("Insufficient funds"));

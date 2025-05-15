@@ -93,7 +93,7 @@ public class ConcurrentTransactionTest {
             Future<?> task1 = executor.submit(() -> {
                 try {
                     await(startLatch);
-                    transactionService.transfer(account1.getId(), account2.getId(), new BigDecimal("100.00"));
+                    transactionService.transfer(account1.getId(), account2.getId(), new BigDecimal("100.00"), null, null);
                 } catch (Exception e) {
                     exception.set(e);
                 }
@@ -103,7 +103,7 @@ public class ConcurrentTransactionTest {
             Future<?> task2 = executor.submit(() -> {
                 try {
                     await(startLatch);
-                    transactionService.transfer(account2.getId(), account1.getId(), new BigDecimal("50.00"));
+                    transactionService.transfer(account2.getId(), account1.getId(), new BigDecimal("50.00"), null, null);
                 } catch (Exception e) {
                     exception.set(e);
                 }
@@ -178,7 +178,9 @@ public class ConcurrentTransactionTest {
                         transactionService.transfer(
                             sender.getId(), 
                             destinationAccount.getId(), 
-                            transferAmount
+                            transferAmount,
+                            null,
+                            null
                         );
                     } catch (Exception e) {
                         exception.set(e);

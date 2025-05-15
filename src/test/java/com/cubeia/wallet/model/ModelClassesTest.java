@@ -218,7 +218,7 @@ class ModelClassesTest {
             .thenReturn(newToBalance);
         
         // Act - Execute the transaction using service
-        transactionService.transfer(fromAccountId, toAccountId, amount);
+        transactionService.transfer(fromAccountId, toAccountId, amount, null, null);
         
         // Assert - Check balances were updated correctly
         assertEquals(newFromBalance, doubleEntryService.calculateBalance(fromAccountId));
@@ -257,7 +257,7 @@ class ModelClassesTest {
         
         // Act & Assert - Should throw exception
         InsufficientFundsException exception = assertThrows(InsufficientFundsException.class, () -> {
-            transactionService.transfer(fromAccountId, toAccountId, amount);
+            transactionService.transfer(fromAccountId, toAccountId, amount, null, null);
         });
         assertTrue(exception.getMessage().contains("Insufficient funds"));
     }
@@ -286,7 +286,7 @@ class ModelClassesTest {
         
         // Act & Assert - Should throw exception
         CurrencyMismatchException exception = assertThrows(CurrencyMismatchException.class, () -> {
-            transactionService.transfer(fromAccountId, toAccountId, amount);
+            transactionService.transfer(fromAccountId, toAccountId, amount, null, null);
         });
         
         // Verification requires both currencies in the message
@@ -407,7 +407,7 @@ class ModelClassesTest {
         
         // Act & Assert - Should throw exception when account not found
         AccountNotFoundException exception = assertThrows(AccountNotFoundException.class, () -> {
-            transactionService.transfer(fromAccountId, toAccountId, amount);
+            transactionService.transfer(fromAccountId, toAccountId, amount, null, null);
         });
         
         // Verify the exception contains the account ID
@@ -434,7 +434,7 @@ class ModelClassesTest {
         
         // Act & Assert - Should throw exception when account not found
         AccountNotFoundException exception = assertThrows(AccountNotFoundException.class, () -> {
-            transactionService.transfer(fromAccountId, toAccountId, amount);
+            transactionService.transfer(fromAccountId, toAccountId, amount, null, null);
         });
         
         assertTrue(exception.getMessage().contains(toAccountId.toString()));

@@ -107,7 +107,8 @@ public class WalletController {
                 transferRequest.fromAccountId(),
                 transferRequest.toAccountId(),
                 transferRequest.amount(),
-                transferRequest.referenceId()
+                transferRequest.referenceId(),
+                transferRequest.description()
         );
         return ResponseEntity.ok().build();
     }

@@ -113,6 +113,7 @@ public class ValidationTest {
                 fromAccount.getId(),
                 toAccount.getId(),
                 BigDecimal.ZERO,
+                null,
                 null);
 
         // when
@@ -138,6 +139,7 @@ public class ValidationTest {
                 fromAccount.getId(),
                 toAccount.getId(),
                 new BigDecimal("-100.00"),
+                null,
                 null);
 
         // when

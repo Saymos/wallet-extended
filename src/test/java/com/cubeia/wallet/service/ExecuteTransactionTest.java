@@ -64,7 +64,7 @@ public class ExecuteTransactionTest {
         
         // This should directly trigger the InsufficientFundsException when transfer is called
         InsufficientFundsException exception = assertThrows(InsufficientFundsException.class, () -> {
-            transactionService.transfer(fromAccount.getId(), toAccount.getId(), amount);
+            transactionService.transfer(fromAccount.getId(), toAccount.getId(), amount, null, null);
         });
         
         assertTrue(exception.getMessage().contains("Insufficient funds"));

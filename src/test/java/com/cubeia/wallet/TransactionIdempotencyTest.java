@@ -136,7 +136,8 @@ public class TransactionIdempotencyTest {
                 sourceAccount.getId(),
                 destinationAccount.getId(),
                 transferAmount,
-                "TEST-REF-001"
+                "TEST-REF-001",
+                null
         );
         
         // Verify
@@ -177,7 +178,8 @@ public class TransactionIdempotencyTest {
                 sourceAccount.getId(),
                 destinationAccount.getId(),
                 transferAmount,
-                "TEST-REF-002"
+                "TEST-REF-002",
+                null
         );
         
         // The second call should return the existing transaction without creating a new one
@@ -228,14 +230,18 @@ public class TransactionIdempotencyTest {
         Transaction firstResult = transactionService.transfer(
                 sourceAccount.getId(),
                 destinationAccount.getId(),
-                transferAmount
+                transferAmount,
+                null,
+                null
         );
         
         // Second transaction with null reference ID
         Transaction secondResult = transactionService.transfer(
                 sourceAccount.getId(),
                 destinationAccount.getId(),
-                transferAmount
+                transferAmount,
+                null,
+                null
         );
         
         // Both transactions should be processed separately

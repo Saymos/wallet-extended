@@ -47,7 +47,7 @@ public class TransactionDirectTest {
         
         // This should trigger the exception handling in TransactionService
         InsufficientFundsException exception = assertThrows(InsufficientFundsException.class, () -> {
-            transactionService.transfer(fromAccount.getId(), toAccount.getId(), amount);
+            transactionService.transfer(fromAccount.getId(), toAccount.getId(), amount, null, null);
         });
         
         // Verify the exception contains expected information
@@ -70,7 +70,7 @@ public class TransactionDirectTest {
         
         // This should trigger a currency mismatch exception
         CurrencyMismatchException exception = assertThrows(CurrencyMismatchException.class, () -> {
-            transactionService.transfer(fromAccount.getId(), toAccount.getId(), amount);
+            transactionService.transfer(fromAccount.getId(), toAccount.getId(), amount, null, null);
         });
         
         // Verify the exception contains expected information

@@ -247,7 +247,7 @@ public class TransactionServiceTest {
         });
 
         // Act
-        Transaction result = transactionService.transfer(fromAccountId, toAccountId, amount);
+        Transaction result = transactionService.transfer(fromAccountId, toAccountId, amount, null, null);
 
         // Assert
         assertNotNull(result);
@@ -288,7 +288,7 @@ public class TransactionServiceTest {
         // Act & Assert
         InsufficientFundsException thrown = assertThrows(
             InsufficientFundsException.class,
-            () -> transactionService.transfer(fromAccountId, toAccountId, amount)
+            () -> transactionService.transfer(fromAccountId, toAccountId, amount, null, null)
         );
 
         // Assert we got the same exception
@@ -321,7 +321,7 @@ public class TransactionServiceTest {
         // Act & Assert
         AccountNotFoundException thrown = assertThrows(
             AccountNotFoundException.class,
-            () -> transactionService.transfer(nonExistentAccountId, toAccountId, amount)
+            () -> transactionService.transfer(nonExistentAccountId, toAccountId, amount, null, null)
         );
 
         // Verify the exception contains the correct account ID
@@ -352,7 +352,7 @@ public class TransactionServiceTest {
         // Act & Assert
         AccountNotFoundException thrown = assertThrows(
             AccountNotFoundException.class,
-            () -> transactionService.transfer(fromAccountId, nonExistentAccountId, amount)
+            () -> transactionService.transfer(fromAccountId, nonExistentAccountId, amount, null, null)
         );
 
         // Verify the exception contains the correct account ID
@@ -383,7 +383,7 @@ public class TransactionServiceTest {
         // Act & Assert
         CurrencyMismatchException thrown = assertThrows(
             CurrencyMismatchException.class,
-            () -> transactionService.transfer(fromAccountId, toAccountId, amount)
+            () -> transactionService.transfer(fromAccountId, toAccountId, amount, null, null)
         );
 
         // Verify the exception contains both currencies
@@ -442,7 +442,7 @@ public class TransactionServiceTest {
         });
 
         // Act
-        Transaction result = transactionService.transfer(fromAccountId, toAccountId, amount);
+        Transaction result = transactionService.transfer(fromAccountId, toAccountId, amount, null, null);
 
         // Assert
         assertNotNull(result);
@@ -552,7 +552,7 @@ public class TransactionServiceTest {
             .thenReturn(new BigDecimal("200.00"));
         
         // Act
-        Transaction result = transactionService.transfer(fromAccountId, toAccountId, amount);
+        Transaction result = transactionService.transfer(fromAccountId, toAccountId, amount, null, null);
         
         // Assert
         assertNotNull(result);
@@ -607,7 +607,7 @@ public class TransactionServiceTest {
         // Act & Assert
         RuntimeException thrown = assertThrows(
             RuntimeException.class,
-            () -> transactionService.transfer(fromAccountId, toAccountId, amount)
+            () -> transactionService.transfer(fromAccountId, toAccountId, amount, null, null)
         );
         
         assertEquals(expectedError, thrown);
@@ -652,7 +652,7 @@ public class TransactionServiceTest {
             .thenReturn(new BigDecimal("200.00"));
         
         // Act
-        Transaction result = transactionService.transfer(fromAccountId, toAccountId, amount);
+        Transaction result = transactionService.transfer(fromAccountId, toAccountId, amount, null, null);
         
         // Assert
         assertNotNull(result);
@@ -731,7 +731,7 @@ public class TransactionServiceTest {
             .thenReturn(new ValidationService.TransferValidationResult(fromAccount, toAccount, existingTransaction));
         
         // Act
-        Transaction result = transactionService.transfer(fromAccountId, toAccountId, amount, referenceId);
+        Transaction result = transactionService.transfer(fromAccountId, toAccountId, amount, referenceId, null);
         
         // Assert
         assertNotNull(result);

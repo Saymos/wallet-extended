@@ -181,7 +181,7 @@ public class DeadlockPreventionTest {
             try {
                 startLatch.await(); // Wait until start signal
                 System.out.println("Starting transfer A → B");
-                transactionService.transfer(accountAId, accountBId, transferAmount);
+                transactionService.transfer(accountAId, accountBId, transferAmount, null, null);
                 System.out.println("Completed transfer A → B");
             } catch (Exception e) {
                 String message = "Transfer A → B failed: " + e.getMessage();
@@ -200,7 +200,7 @@ public class DeadlockPreventionTest {
             try {
                 startLatch.await(); // Wait until start signal
                 System.out.println("Starting transfer B → A");
-                transactionService.transfer(accountBId, accountAId, transferAmount);
+                transactionService.transfer(accountBId, accountAId, transferAmount, null, null);
                 System.out.println("Completed transfer B → A");
             } catch (Exception e) {
                 String message = "Transfer B → A failed: " + e.getMessage();

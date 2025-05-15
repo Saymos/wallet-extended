@@ -89,9 +89,9 @@ public class DoubleEntryIntegrityTest {
         assertEquals(0, new BigDecimal("1000.00").compareTo(initialTotalBalance));
         
         // Perform several transfers
-        transactionService.transfer(account1.getId(), account2.getId(), new BigDecimal("300.00"));
-        transactionService.transfer(account2.getId(), account3.getId(), new BigDecimal("150.00"));
-        transactionService.transfer(account3.getId(), account1.getId(), new BigDecimal("50.00"));
+        transactionService.transfer(account1.getId(), account2.getId(), new BigDecimal("300.00"), null, null);
+        transactionService.transfer(account2.getId(), account3.getId(), new BigDecimal("150.00"), null, null);
+        transactionService.transfer(account3.getId(), account1.getId(), new BigDecimal("50.00"), null, null);
         
         // Verify final total balance in the system
         BigDecimal finalTotalBalance = calculateTotalBalance(List.of(account1, account2, account3));
@@ -119,7 +119,7 @@ public class DoubleEntryIntegrityTest {
         );
         
         // Perform a transfer
-        transactionService.transfer(account1.getId(), account2.getId(), new BigDecimal("200.00"));
+        transactionService.transfer(account1.getId(), account2.getId(), new BigDecimal("200.00"), null, null);
         
         // Get all ledger entries for each account
         List<LedgerEntry> entries1 = ledgerEntryRepository.findByAccountIdOrderByTimestampDesc(account1.getId());
@@ -190,7 +190,9 @@ public class DoubleEntryIntegrityTest {
             transactionService.transfer(
                 accounts.get(i).getId(), 
                 accounts.get(i + 1).getId(), 
-                new BigDecimal("100.00")
+                new BigDecimal("100.00"),
+                null,
+                null
             );
         }
         
@@ -260,7 +262,8 @@ public class DoubleEntryIntegrityTest {
                                 sourceAccount.getId(),
                                 toAccountId,
                                 new BigDecimal("100.00"),
-                                referenceId
+                                referenceId,
+                                null
                             );
                         } catch (Exception e) {
                             System.err.println("Transfer failed: " + e.getMessage());
@@ -339,7 +342,8 @@ public class DoubleEntryIntegrityTest {
                         sourceAccount.getId(),
                         destAccount.getId(),
                         new BigDecimal("100.00"),
-                        ref
+                        ref,
+                        null
                     );
                 } catch (Exception e) {
                     System.err.println("Transfer failed: " + e.getMessage());

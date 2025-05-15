@@ -85,7 +85,7 @@ public class TransactionServiceIntegrationTest {
         
         // Verify the exception is thrown and contains the right message
         InsufficientFundsException exception = assertThrows(InsufficientFundsException.class, () -> {
-            transactionService.transfer(fromAccount.getId(), toAccount.getId(), transferAmount);
+            transactionService.transfer(fromAccount.getId(), toAccount.getId(), transferAmount, null, null);
         });
         
         assertTrue(exception.getMessage().contains("Insufficient funds"));
@@ -105,7 +105,7 @@ public class TransactionServiceIntegrationTest {
         
         // Attempt to transfer between accounts with different currencies
         CurrencyMismatchException exception = assertThrows(CurrencyMismatchException.class, () -> {
-            transactionService.transfer(fromAccount.getId(), toAccount.getId(), transferAmount);
+            transactionService.transfer(fromAccount.getId(), toAccount.getId(), transferAmount, null, null);
         });
         
         assertTrue(exception.getMessage().contains("different currencies"));
@@ -148,7 +148,7 @@ public class TransactionServiceIntegrationTest {
         
         // Execute transfer and verify it completes atomically
         Transaction transaction = transactionService.transfer(
-                fromAccountId, toAccountId, transferAmount);
+                fromAccountId, toAccountId, transferAmount, null, null);
         
         // Verify the transaction details
         assertNotNull(transaction);
@@ -202,7 +202,7 @@ public class TransactionServiceIntegrationTest {
         
         // Execute first transfer
         Transaction firstTransaction = transactionService.transfer(
-                fromAccountId, toAccountId, transferAmount, referenceId);
+                fromAccountId, toAccountId, transferAmount, referenceId, null);
         
         // Get balances after first transfer
         BigDecimal fromBalanceAfterFirst = doubleEntryService.calculateBalance(fromAccountId);
@@ -210,7 +210,7 @@ public class TransactionServiceIntegrationTest {
         
         // Execute second transfer with same reference ID
         Transaction secondTransaction = transactionService.transfer(
-                fromAccountId, toAccountId, transferAmount, referenceId);
+                fromAccountId, toAccountId, transferAmount, referenceId, null);
         
         // Verify it's the same transaction
         assertEquals(firstTransaction.getId(), secondTransaction.getId());

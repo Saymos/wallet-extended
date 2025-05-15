@@ -22,5 +22,8 @@ public record TransferRequestDto(
     BigDecimal amount,
     
     @Schema(description = "Optional reference ID for idempotent requests", example = "REF-123456")
-    String referenceId
+    String referenceId,
+
+    @Schema(description = "Optional description for the transaction", example = "Payment for invoice #1234")
+    String description
 ) {} 

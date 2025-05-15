@@ -122,6 +122,7 @@ public class WalletControllerTest {
             fromAccount.getId(),
             toAccount.getId(),
             new BigDecimal("100.00"),
+            null,
             null
         );
 
@@ -152,6 +153,7 @@ public class WalletControllerTest {
             fromAccount.getId(),
             toAccount.getId(),
             new BigDecimal("100.00"),
+            null,
             null
         );
 
@@ -182,6 +184,7 @@ public class WalletControllerTest {
             UUID.randomUUID(),
             toAccount.getId(),
             new BigDecimal("100.00"),
+            null,
             null
         );
 
@@ -206,6 +209,7 @@ public class WalletControllerTest {
             fromAccount.getId(),
             toAccount.getId(),
             new BigDecimal("-50.00"),
+            null,
             null
         );
 
@@ -234,6 +238,7 @@ public class WalletControllerTest {
             fromAccount.getId(),
             toAccount.getId(),
             new BigDecimal("100.00"),
+            null,
             null
         );
 
@@ -293,6 +298,7 @@ public class WalletControllerTest {
             fromAccount.getId(),
             toAccount.getId(),
             new BigDecimal("100.00"),
+            null,
             null
         );
 
@@ -346,7 +352,8 @@ public class WalletControllerTest {
                 systemAccountId,
                 account.getId(),
                 initialBalance,
-                "initial-balance-" + UUID.randomUUID().toString()
+                null,
+                null
             );
             
             restTemplate.postForEntity(

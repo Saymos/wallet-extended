@@ -123,7 +123,8 @@ public class WalletControllerIdempotencyTest {
             sourceAccount.getId(),
             destinationAccount.getId(),
             transferAmount,
-            referenceId
+            referenceId,
+            null
         );
         
         // First request - should go through
@@ -169,7 +170,8 @@ public class WalletControllerIdempotencyTest {
             sourceAccount.getId(),
             destinationAccount.getId(),
             transferAmount,
-            referenceId
+            referenceId,
+            null
         );
         
         // Execute the transfer
@@ -196,7 +198,8 @@ public class WalletControllerIdempotencyTest {
             sourceAccount.getId(),
             destinationAccount.getId(),
             transferAmount,
-            referenceId
+            referenceId,
+            null
         );
         
         // Execute the transfer

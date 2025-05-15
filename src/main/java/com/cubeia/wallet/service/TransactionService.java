@@ -68,28 +68,30 @@ public class TransactionService {
      * @param fromAccountId The source account ID
      * @param toAccountId The destination account ID
      * @param amount The amount to transfer
+     * @param description Optional description for the transaction
      * @return The transaction record
      * @throws AccountNotFoundException if either account is not found
      * @throws InsufficientFundsException if the source account has insufficient funds
      * @throws CurrencyMismatchException if currencies don't match
      */
-    public Transaction transfer(UUID fromAccountId, UUID toAccountId, BigDecimal amount) {
-        return transfer(fromAccountId, toAccountId, amount, null);
+    public Transaction transfer(UUID fromAccountId, UUID toAccountId, BigDecimal amount, String description) {
+        return transfer(fromAccountId, toAccountId, amount, null, description);
     }
     
     /**
-     * Transfers funds between accounts with an idempotency reference.
+     * Transfers funds between accounts with an idempotency reference and description.
      * 
      * @param fromAccountId The source account ID
      * @param toAccountId The destination account ID
      * @param amount The amount to transfer
      * @param referenceId Optional reference ID for idempotency
+     * @param description Optional description for the transaction
      * @return The transaction record
      * @throws AccountNotFoundException if either account is not found
      * @throws InsufficientFundsException if the source account has insufficient funds
      * @throws CurrencyMismatchException if currencies don't match
      */
-    public Transaction transfer(UUID fromAccountId, UUID toAccountId, BigDecimal amount, String referenceId) {
+    public Transaction transfer(UUID fromAccountId, UUID toAccountId, BigDecimal amount, String referenceId, String description) {
         return transactionTemplate.execute(status -> {
             try {
                 // Validate parameters
@@ -111,14 +113,15 @@ public class TransactionService {
                 // Get currency from the validation result
                 Currency currency = fromAccount.getCurrency();
                 
-                // Create and save the transaction record
+                // Create and save the transaction record (with description)
                 Transaction transaction = new Transaction(
                     fromAccountId, 
                     toAccountId, 
                     amount, 
                     TransactionType.TRANSFER, 
                     currency, 
-                    referenceId);
+                    referenceId,
+                    description);
                 
                 transaction = transactionRepository.save(transaction);
                 

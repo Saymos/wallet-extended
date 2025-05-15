@@ -106,6 +106,39 @@ Retrieves all transactions involving an account.
 curl -X GET http://localhost:8080/accounts/{accountId}/transactions
 ```
 
+## API Error Responses
+
+All API errors are returned in a structured JSON format:
+
+```
+{
+  "status": 400,
+  "message": "Validation failed: amount must be positive",
+  "timestamp": "2024-05-15T12:34:56.789",
+  "path": "/transfers"
+}
+```
+
+- `status`: HTTP status code
+- `message`: Human-readable error message
+- `timestamp`: When the error occurred
+- `path`: The request path (for diagnostics)
+
+Validation errors include a `fieldErrors` map with field-specific messages.
+
+## DTO Mapping Philosophy
+
+All DTOs are implemented as Java records for immutability and clarity. Mapping from entities to DTOs is handled via static `from(...)` factory methods within the DTOs themselves. This approach is:
+- Simple and explicit
+- Type-safe and DRY
+- Free from repetitive or error-prone mapping code
+
+No mapping frameworks (such as MapStruct) are used or needed, as the mapping logic is straightforward and centralized. This keeps the codebase easy to maintain and understand.
+
+## Further Reading
+
+For detailed architectural rationale, design decisions, and improvement history, see [IMPROVEMENTS.md](IMPROVEMENTS.md).
+
 ## Implementation Notes
 
 - Pessimistic locking is used to ensure thread safety during concurrent transfers
@@ -613,13 +646,4 @@ When implementing a double-entry bookkeeping system for a financial application 
    - Consider account-based sharding for very large systems
    - Separate read and write workloads (CQRS pattern)
 
-These considerations should be evaluated based on the expected transaction volume, account count, and read/write patterns of the specific deployment scenario.
-
-## DTO Mapping Philosophy
-
-All DTOs in this project are implemented as Java records for immutability and clarity. Mapping from entities to DTOs is handled via static `from(...)` factory methods within the DTOs themselves. This approach is:
-- Simple and explicit
-- Type-safe and DRY
-- Free from repetitive or error-prone mapping code
-
-No mapping frameworks (such as MapStruct) are used or needed, as the mapping logic is straightforward and centralized. This keeps the codebase easy to maintain and understand. 
+These considerations should be evaluated based on the expected transaction volume, account count, and read/write patterns of the specific deployment scenario. 

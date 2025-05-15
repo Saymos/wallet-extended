@@ -410,6 +410,12 @@ public BigDecimal calculateBalance(UUID accountId) {
 - Explore partial indexes for more specific query optimization.
 - Implement reference cleanup/archiving for old transactions.
 
+## Current State & Next Steps
+
+- All major architectural improvements are complete and thoroughly tested.
+- The codebase is production-ready, with comprehensive documentation and test coverage.
+- For ongoing and future work, see the open tasks file: [tasks/Cubeia Wallet Open Tasks.md](tasks/Cubeia%20Wallet%20Open%20Tasks.md).
+
 ## Conclusion
 
 The improvements made to the Cubeia Wallet application have significantly enhanced its reliability, maintainability, and performance. By addressing key concerns around concurrency, idempotency, error handling, and validation, the application is now better prepared for production use and future extension.

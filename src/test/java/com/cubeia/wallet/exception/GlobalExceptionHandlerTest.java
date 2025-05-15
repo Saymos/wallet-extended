@@ -31,6 +31,7 @@ class GlobalExceptionHandlerTest {
     void setUp() {
         exceptionHandler = new GlobalExceptionHandler();
         webRequest = mock(WebRequest.class);
+        when(webRequest.getDescription(false)).thenReturn("uri=/test");
     }
 
     @Test
@@ -132,7 +133,7 @@ class GlobalExceptionHandlerTest {
         when(bindingResult.getAllErrors()).thenReturn(new ArrayList<>(fieldErrors));
 
         // Act
-        ResponseEntity<ValidationErrorResponse> response = exceptionHandler.handleValidationExceptions(ex);
+        ResponseEntity<ValidationErrorResponse> response = exceptionHandler.handleValidationExceptions(ex, webRequest);
 
         // Assert
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());

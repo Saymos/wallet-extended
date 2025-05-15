@@ -1,7 +1,5 @@
 package com.cubeia.wallet.model;
 
-import java.math.BigDecimal;
-
 import jakarta.persistence.Entity;
 
 /**
@@ -26,15 +24,5 @@ public class TestAccount extends Account {
      */
     protected TestAccount() {
         super();
-    }
-    
-    /**
-     * Override to allow any account type to withdraw its full balance in tests.
-     * This bypasses the normal withdrawal restrictions on account types.
-     */
-    @Override
-    public BigDecimal getMaxWithdrawalAmount() {
-        // Always return full balance regardless of account type
-        return getBalance();
     }
 } 

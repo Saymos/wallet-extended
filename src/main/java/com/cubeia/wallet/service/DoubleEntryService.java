@@ -8,7 +8,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.cubeia.wallet.exception.AccountNotFoundException;
-import com.cubeia.wallet.exception.BalanceVerificationException;
 import com.cubeia.wallet.model.Account;
 import com.cubeia.wallet.model.AccountType;
 import com.cubeia.wallet.model.Currency;
@@ -269,24 +268,6 @@ public class DoubleEntryService {
     public boolean verifyBalance(UUID accountId, BigDecimal expectedBalance) {
         BigDecimal actualBalance = calculateBalance(accountId);
         return actualBalance.compareTo(expectedBalance) == 0;
-    }
-    
-    /**
-     * Verifies that an account's balance calculated from ledger entries matches the stored balance in the Account entity.
-     * <p>
-     * This is useful for transition and migration validation.
-     * </p>
-     *
-     * @param account the account to verify
-     * @throws BalanceVerificationException if the calculated balance doesn't match the stored balance
-     */
-    @Transactional(readOnly = true)
-    public void verifyAccountBalance(Account account) {
-        BigDecimal calculatedBalance = calculateBalanceByCurrency(account.getId(), account.getCurrency());
-        
-        if (calculatedBalance.compareTo(account.getBalance()) != 0) {
-            throw new BalanceVerificationException(account.getId(), account.getBalance(), calculatedBalance);
-        }
     }
     
     /**

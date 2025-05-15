@@ -613,4 +613,13 @@ When implementing a double-entry bookkeeping system for a financial application 
    - Consider account-based sharding for very large systems
    - Separate read and write workloads (CQRS pattern)
 
-These considerations should be evaluated based on the expected transaction volume, account count, and read/write patterns of the specific deployment scenario. 
+These considerations should be evaluated based on the expected transaction volume, account count, and read/write patterns of the specific deployment scenario.
+
+## DTO Mapping Philosophy
+
+All DTOs in this project are implemented as Java records for immutability and clarity. Mapping from entities to DTOs is handled via static `from(...)` factory methods within the DTOs themselves. This approach is:
+- Simple and explicit
+- Type-safe and DRY
+- Free from repetitive or error-prone mapping code
+
+No mapping frameworks (such as MapStruct) are used or needed, as the mapping logic is straightforward and centralized. This keeps the codebase easy to maintain and understand. 

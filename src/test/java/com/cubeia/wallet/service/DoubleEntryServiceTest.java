@@ -97,13 +97,16 @@ public class DoubleEntryServiceTest {
         BigDecimal amount = new BigDecimal("200.00");
         String description = "System credit";
         
-        // We don't need to set up accountRepository.existsById here since that's not checked in the method
+        // Mock that both the target account and system funding account exist
+        lenient().when(accountRepository.existsById(accountId)).thenReturn(true);
+        lenient().when(accountRepository.existsById(any(UUID.class))).thenReturn(true);
         
         // Act
         doubleEntryService.createSystemCreditEntry(accountId, amount, description);
         
         // Assert - verify that the save method was called with a LedgerEntry that has the right properties
-        verify(ledgerEntryRepository).save(any(LedgerEntry.class));
+        // We should have 2 calls - one for the credit and one for the debit from system account
+        verify(ledgerEntryRepository, times(2)).save(any(LedgerEntry.class));
     }
     
     @Test
@@ -130,6 +133,7 @@ public class DoubleEntryServiceTest {
             .amount(initialSystemBalance)
             .entryType(EntryType.CREDIT)
             .description("Initial funding")
+            .currency(Currency.EUR)
             .build();
             
         lenient().when(ledgerEntryRepository.save(any())).thenReturn(creditEntry);
@@ -149,6 +153,7 @@ public class DoubleEntryServiceTest {
             .amount(new BigDecimal("300.00"))
             .entryType(EntryType.DEBIT)
             .description("Transfer to account 2")
+            .currency(Currency.EUR)
             .build();
             
         LedgerEntry credit1 = LedgerEntry.builder()
@@ -157,6 +162,7 @@ public class DoubleEntryServiceTest {
             .amount(new BigDecimal("300.00"))
             .entryType(EntryType.CREDIT)
             .description("Transfer from account 1")
+            .currency(Currency.EUR)
             .build();
         
         // Manually simulate the first transfer

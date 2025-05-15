@@ -15,6 +15,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 
+import com.cubeia.wallet.model.Currency;
 import com.cubeia.wallet.model.EntryType;
 import com.cubeia.wallet.model.LedgerEntry;
 
@@ -53,6 +54,7 @@ public class LedgerEntryRepositoryTest {
                 .entryType(EntryType.CREDIT)
                 .amount(new BigDecimal("100.00"))
                 .description("Test credit entry")
+                .currency(Currency.EUR)
                 .build();
         
         // Transaction 1: Debit from another account (not relevant for this test)
@@ -62,6 +64,7 @@ public class LedgerEntryRepositoryTest {
                 .entryType(EntryType.DEBIT)
                 .amount(new BigDecimal("100.00"))
                 .description("Test debit entry for another account")
+                .currency(Currency.EUR)
                 .build();
         
         // Transaction 2: Debit 30
@@ -71,6 +74,7 @@ public class LedgerEntryRepositoryTest {
                 .entryType(EntryType.DEBIT)
                 .amount(new BigDecimal("30.00"))
                 .description("Test debit entry")
+                .currency(Currency.EUR)
                 .build();
         
         // Transaction 2: Credit to another account (not relevant for this test)
@@ -80,6 +84,7 @@ public class LedgerEntryRepositoryTest {
                 .entryType(EntryType.CREDIT)
                 .amount(new BigDecimal("30.00"))
                 .description("Test credit entry for another account")
+                .currency(Currency.EUR)
                 .build();
         
         // Save all entries

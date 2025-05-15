@@ -62,6 +62,11 @@ public class LedgerEntry {
 
     @Column
     private String description;
+    
+    @NotNull
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Currency currency;
 
     /**
      * Default constructor for JPA.
@@ -76,7 +81,7 @@ public class LedgerEntry {
      * Private constructor to enforce immutability through the builder.
      */
     private LedgerEntry(UUID accountId, UUID transactionId, EntryType entryType, 
-                        BigDecimal amount, String description) {
+                        BigDecimal amount, String description, Currency currency) {
         this.accountId = accountId;
         this.transactionId = transactionId;
         this.entryType = entryType;
@@ -84,6 +89,7 @@ public class LedgerEntry {
         this.amount = amount.abs();
         this.description = description;
         this.timestamp = LocalDateTime.now();
+        this.currency = currency;
     }
 
     @PrePersist
@@ -121,6 +127,10 @@ public class LedgerEntry {
     public String getDescription() {
         return description;
     }
+    
+    public Currency getCurrency() {
+        return currency;
+    }
 
     /**
      * Gets the signed amount based on the entry type.
@@ -156,6 +166,7 @@ public class LedgerEntry {
                 ", amount=" + amount +
                 ", timestamp=" + timestamp +
                 ", description='" + description + '\'' +
+                ", currency=" + currency +
                 '}';
     }
 
@@ -168,6 +179,7 @@ public class LedgerEntry {
         private EntryType entryType;
         private BigDecimal amount;
         private String description;
+        private Currency currency;
 
         public Builder accountId(UUID accountId) {
             this.accountId = accountId;
@@ -193,10 +205,15 @@ public class LedgerEntry {
             this.description = description;
             return this;
         }
+        
+        public Builder currency(Currency currency) {
+            this.currency = currency;
+            return this;
+        }
 
         public LedgerEntry build() {
             validate();
-            return new LedgerEntry(accountId, transactionId, entryType, amount, description);
+            return new LedgerEntry(accountId, transactionId, entryType, amount, description, currency);
         }
 
         private void validate() {
@@ -214,6 +231,9 @@ public class LedgerEntry {
             }
             if (amount.abs().compareTo(BigDecimal.ZERO) <= 0) {
                 throw new IllegalArgumentException("Amount must be positive");
+            }
+            if (currency == null) {
+                throw new IllegalArgumentException("Currency cannot be null");
             }
         }
     }

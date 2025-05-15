@@ -65,13 +65,6 @@ public class ValidationServiceTest {
         }
     }
     
-    /**
-     * Helper method to set the DoubleEntryService in the Account instance
-     */
-    private void setDoubleEntryService(Account account) {
-        account.setDoubleEntryService(doubleEntryService);
-    }
-    
     @BeforeEach
     void setup() {
         fromAccountId = UUID.randomUUID();
@@ -81,11 +74,9 @@ public class ValidationServiceTest {
         
         fromAccount = new Account(Currency.EUR, AccountType.MainAccount.getInstance());
         setAccountId(fromAccount, fromAccountId);
-        setDoubleEntryService(fromAccount);
         
         toAccount = new Account(Currency.EUR, AccountType.MainAccount.getInstance());
         setAccountId(toAccount, toAccountId);
-        setDoubleEntryService(toAccount);
         
         // Mock the DoubleEntryService to return our expected balances - using lenient to avoid UnnecessaryStubbingException
         lenient().when(doubleEntryService.calculateBalance(eq(fromAccountId))).thenReturn(new BigDecimal("500.00"));
@@ -97,7 +88,7 @@ public class ValidationServiceTest {
         // Arrange
         lenient().when(accountRepository.findById(fromAccountId)).thenReturn(Optional.of(fromAccount));
         lenient().when(accountRepository.findById(toAccountId)).thenReturn(Optional.of(toAccount));
-        lenient().when(transactionRepository.findByReference(referenceId)).thenReturn(Optional.empty());
+        lenient().when(transactionRepository.findByReferenceIgnoreCase(referenceId)).thenReturn(Optional.empty());
         
         // Act
         TransferValidationResult result = validationService.validateTransferParameters(
@@ -137,7 +128,6 @@ public class ValidationServiceTest {
         // Arrange
         Account usdAccount = new Account(Currency.USD, AccountType.MainAccount.getInstance());
         setAccountId(usdAccount, toAccountId);
-        setDoubleEntryService(usdAccount);
         
         lenient().when(accountRepository.findById(fromAccountId)).thenReturn(Optional.of(fromAccount));
         lenient().when(accountRepository.findById(toAccountId)).thenReturn(Optional.of(usdAccount));
@@ -160,7 +150,7 @@ public class ValidationServiceTest {
                 referenceId
         );
         
-        lenient().when(transactionRepository.findByReference(referenceId)).thenReturn(Optional.of(existingTransaction));
+        lenient().when(transactionRepository.findByReferenceIgnoreCase(referenceId)).thenReturn(Optional.of(existingTransaction));
         
         // Act & Assert
         assertThrows(InvalidTransactionException.class, () -> {
@@ -180,7 +170,7 @@ public class ValidationServiceTest {
                 referenceId
         );
         
-        lenient().when(transactionRepository.findByReference(referenceId)).thenReturn(Optional.of(existingTransaction));
+        lenient().when(transactionRepository.findByReferenceIgnoreCase(referenceId)).thenReturn(Optional.of(existingTransaction));
         lenient().when(accountRepository.findById(fromAccountId)).thenReturn(Optional.of(fromAccount));
         lenient().when(accountRepository.findById(toAccountId)).thenReturn(Optional.of(toAccount));
         
@@ -190,8 +180,9 @@ public class ValidationServiceTest {
         
         // Assert
         assertNotNull(result);
-        assertEquals(fromAccount, result.fromAccount());
-        assertEquals(toAccount, result.toAccount());
+        assertEquals(null, result.fromAccount());  // Accounts are not fetched for idempotent transactions
+        assertEquals(null, result.toAccount());    // Accounts are not fetched for idempotent transactions
+        assertEquals(existingTransaction, result.existingTransaction());
     }
     
     @Test
@@ -218,7 +209,6 @@ public class ValidationServiceTest {
         // Arrange
         Account systemAccount = new Account(Currency.EUR, AccountType.SystemAccount.getInstance());
         setAccountId(systemAccount, UUID.randomUUID());
-        setDoubleEntryService(systemAccount);
         
         BigDecimal largeAmount = new BigDecimal("1000000.00");  // Very large amount
         

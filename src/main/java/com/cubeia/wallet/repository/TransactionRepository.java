@@ -35,6 +35,16 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
     Optional<Transaction> findByReference(String reference);
     
     /**
+     * Find a transaction by its reference ID, ignoring case.
+     * This is useful when dealing with external payment systems that may use mixed-case reference IDs.
+     * 
+     * @param reference The reference ID to search for
+     * @return Optional containing the transaction if found, or empty if not found
+     */
+    @Query("SELECT t FROM Transaction t WHERE LOWER(t.reference) = LOWER(:reference)")
+    Optional<Transaction> findByReferenceIgnoreCase(@Param("reference") String reference);
+    
+    /**
      * Find all transactions with a specific reference ID.
      * 
      * @param reference The reference ID to search for

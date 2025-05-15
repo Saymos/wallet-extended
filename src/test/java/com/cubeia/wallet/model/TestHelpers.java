@@ -5,6 +5,8 @@ import java.math.BigDecimal;
 import java.util.UUID;
 
 import org.mockito.Mockito;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import com.cubeia.wallet.repository.LedgerEntryRepository;
 import com.cubeia.wallet.service.DoubleEntryService;
@@ -33,27 +35,25 @@ public class TestHelpers {
     }
     
     /**
-     * Helper method to setup account with a mocked DoubleEntryService
-     * that will return the specified balance.
+     * Creates a mock DoubleEntryService that will return the specified balance
+     * for the given account. This method replaces setupAccountWithBalance
+     * for the service-based balance calculation approach.
      * 
-     * @param account The account to setup
-     * @param balance The balance that the mocked service should return
-     * @return The mocked DoubleEntryService for further customization if needed
+     * @param account The account to set up the mock for
+     * @param balance The balance value to return
+     * @return The mocked DoubleEntryService
      */
-    public static DoubleEntryService setupAccountWithBalance(Account account, BigDecimal balance) {
+    public static DoubleEntryService createMockServiceForAccount(Account account, BigDecimal balance) {
         // Ensure the account has an ID
         if (account.getId() == null) {
             setAccountId(account, UUID.randomUUID());
         }
         
-        // Create a mock DoubleEntryService
+        // Create and return a mock service that returns the balance for this account
         DoubleEntryService mockService = Mockito.mock(DoubleEntryService.class);
-        
-        // Setup the mock to return the specified balance for this account
         Mockito.when(mockService.calculateBalance(account.getId())).thenReturn(balance);
-        
-        // Connect the mock service to the account
-        account.setDoubleEntryService(mockService);
+        Mockito.when(mockService.calculateBalanceByCurrency(account.getId(), account.getCurrency()))
+            .thenReturn(balance);
         
         return mockService;
     }
@@ -99,5 +99,109 @@ public class TestHelpers {
         }
         
         return new DoubleEntryService(mockRepo, null);
+    }
+
+    /**
+     * Creates a mock LedgerEntryRepository that returns a specific balance for testing.
+     *
+     * @param balance The balance to report for any account
+     * @return A mocked repository
+     */
+    public static LedgerEntryRepository createMockLedgerEntryRepository(BigDecimal balance) {
+        LedgerEntryRepository mockRepo = mock(LedgerEntryRepository.class);
+        when(mockRepo.calculateBalance(org.mockito.ArgumentMatchers.any(UUID.class)))
+            .thenReturn(balance);
+        when(mockRepo.calculateBalanceByCurrency(
+            org.mockito.ArgumentMatchers.any(UUID.class), 
+            org.mockito.ArgumentMatchers.any(Currency.class)))
+            .thenReturn(balance);
+        return mockRepo;
+    }
+    
+    /**
+     * Creates a mock DoubleEntryService with mocked repository for testing.
+     *
+     * @param balance The balance to report for any account 
+     * @return A DoubleEntryService with mocked repository
+     */
+    public static DoubleEntryService createMockDoubleEntryServiceWithRepo(BigDecimal balance) {
+        LedgerEntryRepository mockRepo = createMockLedgerEntryRepository(balance);
+        return new DoubleEntryService(mockRepo, null);
+    }
+    
+    /**
+     * Creates a mock DoubleEntryService that returns the specified balance.
+     * This is useful for tests that require a mocked balance calculation.
+     *
+     * @param accountId The account ID to expect
+     * @param balance The balance to return
+     * @return A mocked DoubleEntryService
+     */
+    public static DoubleEntryService createMockDoubleEntryService(UUID accountId, BigDecimal balance) {
+        DoubleEntryService mockService = mock(DoubleEntryService.class);
+        when(mockService.calculateBalance(accountId)).thenReturn(balance);
+        when(mockService.calculateBalanceByCurrency(accountId, Currency.EUR)).thenReturn(balance);
+        
+        return mockService;
+    }
+    
+    /**
+     * Creates a test Account with the specified currency and account type.
+     * 
+     * For most tests, use AccountService and DoubleEntryService to calculate
+     * balance rather than using this helper method.
+     *
+     * @param currency The currency for this account
+     * @param accountType The account type
+     * @param balance The balance parameter is ignored in the new implementation
+     * @return A test Account
+     */
+    @Deprecated
+    public static Account createAccountWithBalance(Currency currency, AccountType accountType, BigDecimal balance) {
+        // Simply create a standard account - balance calculation should be done by services in tests
+        return new Account(currency, accountType);
+    }
+    
+    /**
+     * Creates a test Account with the given ID.
+     * This is useful for tests where a specific account ID is needed.
+     * 
+     * For most tests, use AccountService and DoubleEntryService to calculate
+     * balance rather than relying on this helper.
+     * 
+     * @param id The UUID to use for the account
+     * @param currency The currency for this account
+     * @param accountType The account type
+     * @param balance The balance parameter is ignored in the new implementation
+     * @return A test Account with the specified ID
+     */
+    @Deprecated
+    public static Account createAccountWithIdAndBalance(UUID id, Currency currency, AccountType accountType, BigDecimal balance) {
+        Account account = createAccountWithBalance(currency, accountType, balance);
+        
+        try {
+            // Use reflection to set the ID
+            java.lang.reflect.Field idField = Account.class.getDeclaredField("id");
+            idField.setAccessible(true);
+            idField.set(account, id);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to set account ID", e);
+        }
+        
+        return account;
+    }
+    
+    /**
+     * This method is kept for backward compatibility but does nothing
+     * in the new service-based balance calculation approach.
+     * 
+     * @param account The account to mock (ignored)
+     * @param balance The balance to return (ignored)
+     * @deprecated Use service-based balance calculation in tests rather than mocking entity methods
+     */
+    @Deprecated
+    public static void mockAccountBalance(Account account, BigDecimal balance) {
+        // This method intentionally does nothing now
+        // Left for backward compatibility with tests that haven't been updated
     }
 } 

@@ -73,6 +73,31 @@ public class AccountService {
     }
     
     /**
+     * Gets the maximum withdrawal amount for an account based on its type and current balance.
+     *
+     * @param accountId the ID of the account
+     * @return the maximum withdrawal amount
+     * @throws AccountNotFoundException if the account is not found
+     */
+    public BigDecimal getMaxWithdrawalAmount(UUID accountId) {
+        // First get the account to check its type
+        Account account = accountRepository.findById(accountId)
+                .orElseThrow(() -> new AccountNotFoundException(accountId));
+        
+        // Get the current balance
+        BigDecimal currentBalance = doubleEntryService.calculateBalance(accountId);
+        
+        // Determine maximum withdrawal based on account type
+        if (account.getAccountType() instanceof AccountType.SystemAccount) {
+            return new BigDecimal(Integer.MAX_VALUE);
+        } else if (account.getAccountType().allowFullBalanceWithdrawal()) {
+            return currentBalance;
+        } else {
+            return BigDecimal.ZERO;
+        }
+    }
+    
+    /**
      * Gets an account by its ID.
      *
      * @param accountId the ID of the account

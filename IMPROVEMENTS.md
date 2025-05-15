@@ -363,6 +363,53 @@ public BigDecimal calculateBalance(UUID accountId) {
 - Add subledger support for detailed categorization of entries
 - Create a periodic balance checkpoint system for large-scale deployments
 
+## 9. Database Integrity Improvements
+
+### Original Issue
+- The original implementation lacked database-level constraints for reference uniqueness.
+- No database indexes were defined for frequently queried fields, potentially impacting performance.
+- Reference lookup was case-sensitive, which could cause issues when interacting with external systems.
+
+### Implementation
+- Added a unique constraint to the `reference` field in the Transaction entity:
+  ```java
+  @Column(name = "reference", length = 255, unique = true)
+  private String reference;
+  ```
+- Added database indexes for commonly queried fields:
+  ```java
+  @Table(
+      name = "transactions",
+      indexes = {
+          @Index(name = "idx_transaction_from_account", columnList = "from_account_id"),
+          @Index(name = "idx_transaction_to_account", columnList = "to_account_id"),
+          @Index(name = "idx_transaction_reference", columnList = "reference")
+      }
+  )
+  ```
+- Implemented case-insensitive reference lookup for better compatibility with external systems:
+  ```java
+  @Query("SELECT t FROM Transaction t WHERE LOWER(t.reference) = LOWER(:reference)")
+  Optional<Transaction> findByReferenceIgnoreCase(@Param("reference") String reference);
+  ```
+- Updated the idempotency check to use case-insensitive lookups:
+  ```java
+  // Use case-insensitive lookup to improve compatibility with external systems
+  existingTransaction = transactionRepository.findByReferenceIgnoreCase(referenceId).orElse(null);
+  ```
+
+### Benefits
+- Guarantees reference uniqueness at the database level, preventing data inconsistencies.
+- Improves query performance for frequently used operations, such as searching by account IDs.
+- Provides better interoperability with external systems that might use different case conventions.
+- Maintains idempotency guarantees while being more flexible in reference handling.
+
+### Future Improvements
+- Implement reference formatting rules or validation to ensure consistency.
+- Consider adding timestamp-based indexing for time-range queries.
+- Explore partial indexes for more specific query optimization.
+- Implement reference cleanup/archiving for old transactions.
+
 ## Conclusion
 
 The improvements made to the Cubeia Wallet application have significantly enhanced its reliability, maintainability, and performance. By addressing key concerns around concurrency, idempotency, error handling, and validation, the application is now better prepared for production use and future extension.

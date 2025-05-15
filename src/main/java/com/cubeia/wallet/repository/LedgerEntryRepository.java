@@ -12,6 +12,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import com.cubeia.wallet.model.Currency;
 import com.cubeia.wallet.model.EntryType;
 import com.cubeia.wallet.model.LedgerEntry;
 
@@ -60,7 +61,7 @@ public interface LedgerEntryRepository extends JpaRepository<LedgerEntry, UUID> 
     BigDecimal sumByAccountIdAndType(@Param("accountId") UUID accountId, @Param("entryType") EntryType entryType);
     
     /**
-     * Calculates the balance for a specific account by summing all debits and credits.
+     * Calculates the balance for a specific account by summing all debits and credits across all currencies.
      * <p>
      * The balance is calculated as (sum of all CREDIT amounts) - (sum of all DEBIT amounts).
      * </p>
@@ -70,6 +71,38 @@ public interface LedgerEntryRepository extends JpaRepository<LedgerEntry, UUID> 
      */
     @Query("SELECT COALESCE(SUM(CASE WHEN e.entryType = 'CREDIT' THEN e.amount ELSE -e.amount END), 0) FROM LedgerEntry e WHERE e.accountId = :accountId")
     BigDecimal calculateBalance(@Param("accountId") UUID accountId);
+    
+    /**
+     * Calculates the balance for a specific account by summing all debits and credits.
+     * <p>
+     * The balance is calculated as (sum of all CREDIT amounts) - (sum of all DEBIT amounts).
+     * If currency is specified, only entries with that currency are considered.
+     * </p>
+     *
+     * @param accountId the ID of the account
+     * @param currency the currency to filter by
+     * @return the current balance for the specified currency
+     */
+    @Query("SELECT COALESCE(SUM(CASE WHEN e.entryType = 'CREDIT' THEN e.amount ELSE -e.amount END), 0) FROM LedgerEntry e WHERE e.accountId = :accountId AND e.currency = :currency")
+    BigDecimal calculateBalanceByCurrency(@Param("accountId") UUID accountId, @Param("currency") Currency currency);
+    
+    /**
+     * Finds all ledger entries for a specific account and currency.
+     *
+     * @param accountId the ID of the account
+     * @param currency the currency to filter by
+     * @return a list of ledger entries
+     */
+    List<LedgerEntry> findByAccountIdAndCurrencyOrderByTimestampDesc(UUID accountId, Currency currency);
+    
+    /**
+     * Finds all ledger entries for a specific transaction and currency.
+     *
+     * @param transactionId the ID of the transaction
+     * @param currency the currency to filter by
+     * @return a list of ledger entries
+     */
+    List<LedgerEntry> findByTransactionIdAndCurrency(UUID transactionId, Currency currency);
     
     /**
      * Finds all ledger entries for a specific account and type.

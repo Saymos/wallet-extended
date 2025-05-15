@@ -71,6 +71,7 @@ class AccountRepositoryTest {
             .entryType(EntryType.DEBIT)
             .amount(amount)
             .description("System credit")
+            .currency(Currency.EUR)
             .build();
         
         // Create credit to target account
@@ -80,6 +81,7 @@ class AccountRepositoryTest {
             .entryType(EntryType.CREDIT)
             .amount(amount)
             .description("System credit")
+            .currency(Currency.EUR)  // Use EUR for system credits regardless of account currency
             .build();
         
         ledgerEntryRepository.save(debitEntry);
@@ -93,12 +95,10 @@ class AccountRepositoryTest {
 
         // when
         Account savedAccount = accountRepository.save(account);
-        // Inject the DoubleEntryService for balance calculation
-        savedAccount.setDoubleEntryService(doubleEntryService);
 
         // then
         assertNotNull(savedAccount.getId());
-        assertEquals(BigDecimal.ZERO, savedAccount.getBalance());
+        assertEquals(BigDecimal.ZERO, doubleEntryService.calculateBalance(savedAccount.getId()));
         assertEquals(Currency.EUR, savedAccount.getCurrency());
         assertEquals(AccountType.MainAccount.getInstance(), savedAccount.getAccountType());
     }
@@ -115,9 +115,6 @@ class AccountRepositoryTest {
         // when
         Optional<Account> foundAccountOpt = accountRepository.findById(savedAccount.getId());
         
-        // Inject the DoubleEntryService for balance calculation
-        foundAccountOpt.ifPresent(foundAccount -> foundAccount.setDoubleEntryService(doubleEntryService));
-        
         // then
         assertTrue(foundAccountOpt.isPresent());
         Account foundAccount = foundAccountOpt.get();
@@ -125,7 +122,6 @@ class AccountRepositoryTest {
         
         // Verify the balance is calculated from ledger entries
         assertEquals(new BigDecimal("100.0000"), doubleEntryService.calculateBalance(foundAccount.getId()));
-        assertEquals(new BigDecimal("100.0000"), foundAccount.getBalance());
         
         assertEquals(Currency.USD, foundAccount.getCurrency());
         assertEquals(AccountType.BonusAccount.getInstance(), foundAccount.getAccountType());
@@ -143,9 +139,6 @@ class AccountRepositoryTest {
         // when
         Optional<Account> foundAccountOpt = accountRepository.findByIdWithLock(savedAccount.getId());
         
-        // Inject the DoubleEntryService for balance calculation
-        foundAccountOpt.ifPresent(foundAccount -> foundAccount.setDoubleEntryService(doubleEntryService));
-        
         // then
         assertTrue(foundAccountOpt.isPresent());
         Account foundAccount = foundAccountOpt.get();
@@ -153,7 +146,6 @@ class AccountRepositoryTest {
         
         // Verify the balance is calculated from ledger entries
         assertEquals(new BigDecimal("200.0000"), doubleEntryService.calculateBalance(foundAccount.getId()));
-        assertEquals(new BigDecimal("200.0000"), foundAccount.getBalance());
         
         assertEquals(Currency.GBP, foundAccount.getCurrency());
         assertEquals(AccountType.PendingAccount.getInstance(), foundAccount.getAccountType());
@@ -171,12 +163,9 @@ class AccountRepositoryTest {
         // then - verify initial balance
         Optional<Account> initialAccountOpt = accountRepository.findById(savedAccount.getId());
         
-        // Inject the DoubleEntryService for balance calculation
-        initialAccountOpt.ifPresent(initialAcc -> initialAcc.setDoubleEntryService(doubleEntryService));
-        
         assertTrue(initialAccountOpt.isPresent());
         Account initialAccount = initialAccountOpt.get();
-        assertEquals(new BigDecimal("300.0000"), initialAccount.getBalance());
+        assertEquals(new BigDecimal("300.0000"), doubleEntryService.calculateBalance(initialAccount.getId()));
         
         // when - add another credit
         createSystemCredit(savedAccount.getId(), new BigDecimal("50.0000"));
@@ -184,12 +173,9 @@ class AccountRepositoryTest {
         // then - verify updated balance
         Optional<Account> updatedAccountOpt = accountRepository.findById(savedAccount.getId());
         
-        // Inject the DoubleEntryService for balance calculation
-        updatedAccountOpt.ifPresent(updatedAcc -> updatedAcc.setDoubleEntryService(doubleEntryService));
-        
         assertTrue(updatedAccountOpt.isPresent());
         Account updatedAccount = updatedAccountOpt.get();
-        assertEquals(new BigDecimal("350.0000"), updatedAccount.getBalance());
+        assertEquals(new BigDecimal("350.0000"), doubleEntryService.calculateBalance(updatedAccount.getId()));
     }
 
     @Test

@@ -7,7 +7,6 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -22,7 +21,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import com.cubeia.wallet.exception.AccountNotFoundException;
 import com.cubeia.wallet.model.Account;
 import com.cubeia.wallet.model.AccountType;
 import com.cubeia.wallet.model.Currency;
@@ -62,7 +60,7 @@ public class AccountServiceTest {
      * Helper method to set the DoubleEntryService in the Account instance
      */
     private void setDoubleEntryService(Account account, DoubleEntryService service) {
-        account.setDoubleEntryService(service);
+        // No longer needed; remove this method
     }
 
     @Test
@@ -80,7 +78,6 @@ public class AccountServiceTest {
         // Assert
         assertNotNull(result);
         assertEquals(accountId, result.getId());
-        assertEquals(BigDecimal.ZERO, result.getBalance());
         assertEquals(Currency.EUR, result.getCurrency());
         assertEquals(AccountType.MainAccount.getInstance(), result.getAccountType());
         verify(accountRepository, times(1)).save(any(Account.class));
@@ -107,7 +104,6 @@ public class AccountServiceTest {
         // Assert
         assertNotNull(result);
         assertEquals(accountId, result.getId());
-        assertEquals(BigDecimal.ZERO, result.getBalance());
         assertEquals(currency, result.getCurrency());
         assertEquals(accountType, result.getAccountType());
         
@@ -120,40 +116,6 @@ public class AccountServiceTest {
     }
 
     @Test
-    void getBalance_ShouldReturnCorrectBalance() {
-        // Arrange
-        UUID accountId = UUID.randomUUID();
-        BigDecimal expectedBalance = BigDecimal.valueOf(100.0);
-        
-        // Mock the accountRepository to verify the account exists
-        lenient().when(accountRepository.existsById(eq(accountId))).thenReturn(true);
-        
-        // Mock the DoubleEntryService to return our expected balance
-        lenient().when(doubleEntryService.calculateBalance(eq(accountId))).thenReturn(expectedBalance);
-
-        // Act
-        BigDecimal result = accountService.getBalance(accountId);
-
-        // Assert
-        assertEquals(expectedBalance, result);
-        verify(accountRepository, times(1)).existsById(accountId);
-        verify(doubleEntryService, times(1)).calculateBalance(accountId);
-    }
-
-    @Test
-    void getBalance_ShouldThrowAccountNotFoundException() {
-        // Arrange
-        UUID accountId = UUID.randomUUID();
-        when(accountRepository.existsById(accountId)).thenReturn(false);
-
-        // Act & Assert
-        assertThrows(AccountNotFoundException.class, () -> {
-            accountService.getBalance(accountId);
-        });
-        verify(accountRepository, times(1)).existsById(accountId);
-    }
-    
-    @Test
     void getAccount_ShouldReturnAccountWithCorrectCurrencyAndType() {
         // Arrange
         UUID accountId = UUID.randomUUID();
@@ -162,7 +124,6 @@ public class AccountServiceTest {
         
         Account account = new Account(expectedCurrency, expectedAccountType);
         setAccountId(account, accountId);
-        setDoubleEntryService(account, doubleEntryService);
         
         // Mock the account with zero balance
         lenient().when(doubleEntryService.calculateBalance(eq(accountId))).thenReturn(BigDecimal.ZERO);

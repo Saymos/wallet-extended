@@ -1,6 +1,5 @@
 package com.cubeia.wallet.service;
 
-import java.lang.reflect.Field;
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -19,6 +18,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.annotation.DirtiesContext;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import com.cubeia.wallet.model.Account;
 import com.cubeia.wallet.model.AccountType;
@@ -38,18 +38,32 @@ public class ConcurrentTransactionTest {
     @Autowired
     private AccountRepository accountRepository;
     
+    @Autowired
+    private DoubleEntryService doubleEntryService;
+    
+    @Autowired
+    private TransactionTemplate transactionTemplate;
+    
     /**
-     * Helper method to set account balance using reflection (for testing)
+     * Helper method to create a system credit for an account (for testing)
+     * Also ensures the account has DoubleEntryService properly injected
      */
-    private void setAccountBalance(Account account, BigDecimal balance) {
-        try {
-            Field balanceField = Account.class.getDeclaredField("balance");
-            balanceField.setAccessible(true);
-            balanceField.set(account, balance);
-            accountRepository.save(account);
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to set balance", e);
-        }
+    private void createSystemCredit(Account account, BigDecimal amount) {
+        // No more setDoubleEntryService
+        transactionTemplate.execute(status -> {
+            doubleEntryService.createSystemCreditEntry(account.getId(), amount, "System credit for testing");
+            return doubleEntryService.calculateBalance(account.getId());
+        });
+    }
+    
+    /**
+     * Helper method to create and prepare an account with proper service injection
+     */
+    private Account createAndPrepareAccount(Currency currency, AccountType accountType) {
+        Account account = new Account(currency, accountType);
+        account = accountRepository.save(account);
+        // No more setDoubleEntryService
+        return account;
     }
     
     /**
@@ -60,11 +74,11 @@ public class ConcurrentTransactionTest {
     @Test
     public void testConcurrentOppositeTransfers() {
         // Given - Create two accounts with initial balances
-        Account account1 = accountRepository.save(new Account(Currency.EUR, AccountType.MainAccount.getInstance()));
-        Account account2 = accountRepository.save(new Account(Currency.EUR, AccountType.MainAccount.getInstance()));
+        Account account1 = createAndPrepareAccount(Currency.EUR, AccountType.MainAccount.getInstance());
+        Account account2 = createAndPrepareAccount(Currency.EUR, AccountType.MainAccount.getInstance());
         
-        setAccountBalance(account1, new BigDecimal("1000.00"));
-        setAccountBalance(account2, new BigDecimal("1000.00"));
+        createSystemCredit(account1, new BigDecimal("1000.00"));
+        createSystemCredit(account2, new BigDecimal("1000.00"));
         
         // Set up thread synchronization
         CountDownLatch startLatch = new CountDownLatch(1);
@@ -113,15 +127,15 @@ public class ConcurrentTransactionTest {
                 fail("Potential deadlock detected - transfers did not complete");
             }
             
-            // Verify the final balances
-            Account finalAccount1 = accountRepository.findById(account1.getId()).get();
-            Account finalAccount2 = accountRepository.findById(account2.getId()).get();
+            // Verify the final balances using DoubleEntryService
+            BigDecimal finalBalance1 = doubleEntryService.calculateBalance(account1.getId());
+            BigDecimal finalBalance2 = doubleEntryService.calculateBalance(account2.getId());
             
             // A1 started with 1000, sent 100, received 50 = 950
             // A2 started with 1000, sent 50, received 100 = 1050
-            assertEquals(0, new BigDecimal("950.00").compareTo(finalAccount1.getBalance()),
+            assertEquals(0, new BigDecimal("950.00").compareTo(finalBalance1),
                 "Account 1 should have balance of 950.00");
-            assertEquals(0, new BigDecimal("1050.00").compareTo(finalAccount2.getBalance()),
+            assertEquals(0, new BigDecimal("1050.00").compareTo(finalBalance2),
                 "Account 2 should have balance of 1050.00");
         });
     }
@@ -136,17 +150,13 @@ public class ConcurrentTransactionTest {
         BigDecimal transferAmount = new BigDecimal("10.00");
         
         // Create a destination account
-        Account destinationAccount = accountRepository.save(
-            new Account(Currency.EUR, AccountType.MainAccount.getInstance())
-        );
+        Account destinationAccount = createAndPrepareAccount(Currency.EUR, AccountType.MainAccount.getInstance());
         
         // Create multiple sender accounts
         List<Account> senderAccounts = new ArrayList<>();
         for (int i = 0; i < numSenders; i++) {
-            Account sender = accountRepository.save(
-                new Account(Currency.EUR, AccountType.MainAccount.getInstance())
-            );
-            setAccountBalance(sender, new BigDecimal("100.00"));
+            Account sender = createAndPrepareAccount(Currency.EUR, AccountType.MainAccount.getInstance());
+            createSystemCredit(sender, new BigDecimal("100.00"));
             senderAccounts.add(sender);
         }
         
@@ -195,31 +205,31 @@ public class ConcurrentTransactionTest {
                 fail("Potential deadlock detected - transfers did not complete");
             }
             
-            // Verify the final balances
-            Account finalDestination = accountRepository.findById(destinationAccount.getId()).get();
+            // Verify the final balances using DoubleEntryService
+            BigDecimal finalDestBalance = doubleEntryService.calculateBalance(destinationAccount.getId());
             BigDecimal expectedBalance = transferAmount.multiply(new BigDecimal(numSenders));
-            assertEquals(0, expectedBalance.compareTo(finalDestination.getBalance()),
-                "Destination account should have balance of " + expectedBalance);
             
-            // Check each sender has the correct remaining balance
-            BigDecimal expectedSenderBalance = new BigDecimal("90.00");
+            assertEquals(0, expectedBalance.compareTo(finalDestBalance),
+                    "Destination account should have received all transfers");
+            
+            // Check each sender has the correct balance
             for (Account sender : senderAccounts) {
-                Account finalSender = accountRepository.findById(sender.getId()).get();
-                assertEquals(expectedSenderBalance.compareTo(finalSender.getBalance()), 0, 
-                    "Account balance should be " + expectedSenderBalance);
+                BigDecimal senderFinalBalance = doubleEntryService.calculateBalance(sender.getId());
+                assertEquals(0, new BigDecimal("90.00").compareTo(senderFinalBalance),
+                        "Sender should have 90.00 remaining");
             }
         });
     }
     
     /**
-     * Helper method to await on a CountDownLatch and handle InterruptedException
+     * Helper method to wait for a latch to count down
      */
     private void await(CountDownLatch latch) {
         try {
             latch.await();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new RuntimeException("Thread interrupted", e);
+            throw new RuntimeException("Thread interrupted while waiting", e);
         }
     }
 } 

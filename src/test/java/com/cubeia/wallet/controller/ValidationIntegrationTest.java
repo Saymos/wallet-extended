@@ -24,6 +24,7 @@ import com.cubeia.wallet.model.Currency;
 import com.cubeia.wallet.repository.AccountRepository;
 import com.cubeia.wallet.repository.TransactionRepository;
 import com.cubeia.wallet.service.AccountService;
+import com.cubeia.wallet.service.DoubleEntryService;
 
 /**
  * Integration test for validations at the controller and service layer.
@@ -47,6 +48,9 @@ public class ValidationIntegrationTest {
     
     @Autowired
     private AccountService accountService;
+    
+    @Autowired
+    private DoubleEntryService doubleEntryService;
 
     private String getBaseUrl() {
         return "http://localhost:" + port;
@@ -89,8 +93,11 @@ public class ValidationIntegrationTest {
         Account toAccount = accountRepository.save(new Account(Currency.USD, AccountType.MainAccount.getInstance()));
         
         // Fund the account so insufficient funds isn't the issue
-        fromAccount.updateBalance(new BigDecimal("500.00"));
-        accountRepository.save(fromAccount);
+        doubleEntryService.createSystemCreditEntry(
+            fromAccount.getId(), 
+            new BigDecimal("500.00"), 
+            "Test initial balance"
+        );
         
         TransferRequestDto transferRequest = new TransferRequestDto(
                 fromAccount.getId(),
@@ -121,8 +128,11 @@ public class ValidationIntegrationTest {
         Account account3 = accountRepository.save(new Account(Currency.EUR, AccountType.MainAccount.getInstance()));
         
         // Fund account1
-        account1.updateBalance(new BigDecimal("1000.00"));
-        accountRepository.save(account1);
+        doubleEntryService.createSystemCreditEntry(
+            account1.getId(), 
+            new BigDecimal("1000.00"), 
+            "Test initial balance"
+        );
         
         String referenceId = "test-reference-id";
         
@@ -185,8 +195,11 @@ public class ValidationIntegrationTest {
         Account toAccount = accountRepository.save(new Account(Currency.EUR, AccountType.MainAccount.getInstance()));
         
         // Fund account
-        fromAccount.updateBalance(new BigDecimal("500.00"));
-        accountRepository.save(fromAccount);
+        doubleEntryService.createSystemCreditEntry(
+            fromAccount.getId(), 
+            new BigDecimal("500.00"), 
+            "Test initial balance"
+        );
         
         TransferRequestDto transferRequest = new TransferRequestDto(
                 fromAccount.getId(),

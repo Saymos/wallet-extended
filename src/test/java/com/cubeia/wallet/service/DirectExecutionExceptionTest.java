@@ -1,12 +1,10 @@
 package com.cubeia.wallet.service;
 
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.lang.reflect.Field;
 import java.math.BigDecimal;
-import java.util.UUID;
 
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -22,8 +20,8 @@ import com.cubeia.wallet.model.TransactionType;
 import com.cubeia.wallet.repository.AccountRepository;
 
 /**
- * Test that directly exercises the Transaction.execute to trigger exceptions
- * for coverage of the TransactionService exception handling.
+ * Test that directly exercises the TransactionService.executeTransaction method
+ * to verify exception handling.
  */
 @SpringBootTest(classes = WalletApplication.class)
 public class DirectExecutionExceptionTest {
@@ -33,6 +31,9 @@ public class DirectExecutionExceptionTest {
     
     @Autowired
     private AccountRepository accountRepository;
+    
+    @Autowired
+    private DoubleEntryService doubleEntryService;
     
     /**
      * Helper method to set a private field via reflection
@@ -53,9 +54,12 @@ public class DirectExecutionExceptionTest {
         Account toAccount = new Account(Currency.EUR, AccountType.MainAccount.getInstance());
         accountRepository.save(toAccount);
         
-        // Set a very small balance that will trigger insufficientFunds
-        setField(fromAccount, "balance", new BigDecimal("5.00"));
-        accountRepository.save(fromAccount);
+        // Set a very small balance via a ledger entry
+        doubleEntryService.createSystemCreditEntry(
+            fromAccount.getId(),
+            new BigDecimal("5.00"),
+            "Test initial balance"
+        );
         
         // Create the transaction with an amount larger than the balance
         BigDecimal amount = new BigDecimal("10.00");
@@ -71,39 +75,6 @@ public class DirectExecutionExceptionTest {
         // when transaction.execute is called inside transferService
         InsufficientFundsException exception = assertThrows(InsufficientFundsException.class, () -> {
             transactionService.transfer(fromAccount.getId(), toAccount.getId(), amount);
-        });
-        
-        assertTrue(exception.getMessage().contains("exceeds maximum withdrawal amount"));
-    }
-    
-    @Test
-    @Transactional
-    public void testDirectExecuteWithInsufficientFunds() throws Exception {
-        // Create accounts
-        UUID fromId = UUID.randomUUID();
-        UUID toId = UUID.randomUUID();
-        
-        Account fromAccount = new Account(Currency.EUR, AccountType.MainAccount.getInstance());
-        setField(fromAccount, "id", fromId);
-        setField(fromAccount, "balance", new BigDecimal("5.00"));
-        
-        Account toAccount = new Account(Currency.EUR, AccountType.MainAccount.getInstance());
-        setField(toAccount, "id", toId);
-        
-        // Create transaction with amount greater than balance
-        BigDecimal amount = new BigDecimal("10.00");
-        Transaction transaction = new Transaction(
-            fromId, 
-            toId,
-            amount,
-            TransactionType.TRANSFER,
-            Currency.EUR
-        );
-        
-        // Call execute directly to trigger IllegalArgumentException - this simulates 
-        // what happens inside TransactionService.transfer that we want to cover
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
-            transaction.execute(transaction, fromAccount, toAccount);
         });
         
         assertTrue(exception.getMessage().contains("Insufficient funds"));

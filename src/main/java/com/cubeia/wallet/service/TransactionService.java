@@ -14,7 +14,6 @@ import com.cubeia.wallet.exception.CurrencyMismatchException;
 import com.cubeia.wallet.exception.InsufficientFundsException;
 import com.cubeia.wallet.model.Account;
 import com.cubeia.wallet.model.Currency;
-import com.cubeia.wallet.model.LedgerEntry;
 import com.cubeia.wallet.model.Transaction;
 import com.cubeia.wallet.model.TransactionType;
 import com.cubeia.wallet.repository.AccountRepository;
@@ -30,111 +29,114 @@ public class TransactionService {
     private final AccountRepository accountRepository;
     private final TransactionRepository transactionRepository;
     private final ValidationService validationService;
-    private final TransactionTemplate transactionTemplate;
     private final DoubleEntryService doubleEntryService;
+    private final TransactionTemplate transactionTemplate;
+    
+    // Store the most recent transaction ID to support integration tests
+    private UUID mostRecentTransactionId;
 
+    /**
+     * Creates a new TransactionService.
+     * 
+     * @param accountRepository Repository for account data access
+     * @param transactionRepository Repository for transaction data access
+     * @param validationService Service for validating transaction parameters
+     * @param doubleEntryService Service for double-entry bookkeeping operations
+     * @param transactionManager Transaction manager for managing transactions
+     */
     public TransactionService(
-            AccountRepository accountRepository, 
+            AccountRepository accountRepository,
             TransactionRepository transactionRepository,
             ValidationService validationService,
-            PlatformTransactionManager transactionManager,
-            DoubleEntryService doubleEntryService) {
+            DoubleEntryService doubleEntryService,
+            PlatformTransactionManager transactionManager) {
         this.accountRepository = accountRepository;
         this.transactionRepository = transactionRepository;
         this.validationService = validationService;
         this.doubleEntryService = doubleEntryService;
         
-        // Initialize TransactionTemplate with appropriate settings
-        this.transactionTemplate = createTransactionTemplate(transactionManager);
-    }
-    
-    /**
-     * Creates and configures a TransactionTemplate.
-     * This method is separate to allow mocking in tests.
-     */
-    private TransactionTemplate createTransactionTemplate(PlatformTransactionManager transactionManager) {
-        TransactionTemplate template = new TransactionTemplate(transactionManager);
-        template.setIsolationLevel(TransactionDefinition.ISOLATION_READ_COMMITTED);
-        template.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRED);
-        return template;
-    }
-    
-    /**
-     * Returns the transaction template.
-     * Protected visibility to allow mocking in tests.
-     */
-    protected TransactionTemplate getTransactionTemplate() {
-        return transactionTemplate;
+        // Configure transaction template with SERIALIZABLE isolation level
+        // to prevent phantom reads, non-repeatable reads, and dirty reads
+        this.transactionTemplate = new TransactionTemplate(transactionManager);
+        this.transactionTemplate.setIsolationLevel(TransactionDefinition.ISOLATION_SERIALIZABLE);
+        this.transactionTemplate.setTimeout(15); // 15 seconds timeout
     }
 
     /**
-     * Transfers funds between accounts with deadlock prevention.
+     * Transfers funds between accounts.
      * 
-     * Accounts are always locked in a consistent order (by comparing IDs) to prevent deadlocks.
-     * See README for a detailed explanation of the deadlock prevention strategy.
-     * 
-     * @param fromAccountId The ID of the account to transfer from
-     * @param toAccountId The ID of the account to transfer to
+     * @param fromAccountId The source account ID
+     * @param toAccountId The destination account ID
      * @param amount The amount to transfer
-     * @return The created Transaction record
+     * @return The transaction record
      * @throws AccountNotFoundException if either account is not found
-     * @throws InsufficientFundsException if the from account has insufficient funds
+     * @throws InsufficientFundsException if the source account has insufficient funds
      * @throws CurrencyMismatchException if currencies don't match
      */
     public Transaction transfer(UUID fromAccountId, UUID toAccountId, BigDecimal amount) {
         return transfer(fromAccountId, toAccountId, amount, null);
     }
-
+    
     /**
-     * Transfers funds between accounts with deadlock prevention and idempotency support.
+     * Transfers funds between accounts with an idempotency reference.
      * 
-     * If a transaction with the given reference ID already exists, it returns that transaction
-     * instead of creating a new one, ensuring idempotency for duplicate requests.
-     * 
-     * Accounts are always locked in a consistent order (by comparing IDs) to prevent deadlocks.
-     * See README for a detailed explanation of the deadlock prevention strategy.
-     * 
-     * @param fromAccountId The ID of the account to transfer from
-     * @param toAccountId The ID of the account to transfer to
+     * @param fromAccountId The source account ID
+     * @param toAccountId The destination account ID
      * @param amount The amount to transfer
-     * @param referenceId Optional reference ID for idempotency (can be null)
-     * @return The created or existing Transaction record
+     * @param referenceId Optional reference ID for idempotency
+     * @return The transaction record
      * @throws AccountNotFoundException if either account is not found
-     * @throws InsufficientFundsException if the from account has insufficient funds
-     * @throws CurrencyMismatchException if currencies don't match between accounts
+     * @throws InsufficientFundsException if the source account has insufficient funds
+     * @throws CurrencyMismatchException if currencies don't match
      */
     public Transaction transfer(UUID fromAccountId, UUID toAccountId, BigDecimal amount, String referenceId) {
-        // Consolidate all validation in ValidationService, which also handles idempotency
-        TransferValidationResult validationResult = validationService.validateTransferParameters(
-            fromAccountId, toAccountId, amount, referenceId);
-        
-        // If we found an existing transaction with same reference ID, return it for idempotency
-        if (validationResult.existingTransaction() != null) {
-            return validationResult.existingTransaction();
-        }
-        
-        Account fromAccount = validationResult.fromAccount();
-        Account toAccount = validationResult.toAccount();
-        
-        // Pre-create the transaction object outside the transaction boundary
-        Currency currency = fromAccount.getCurrency();
-        Transaction transaction = new Transaction(
-            fromAccountId, 
-            toAccountId, 
-            amount, 
-            TransactionType.TRANSFER, 
-            currency,
-            referenceId
-        );
-        
-        // Execute only the critical section within a transaction
-        return getTransactionTemplate().execute(status -> {
-            // Execute the transaction using our method
-            // This creates ledger entries and updates balances
-            executeTransaction(transaction);
-            
-            // Save and return the transaction record
-            return transactionRepository.save(transaction);
+        return transactionTemplate.execute(status -> {
+            try {
+                // Validate parameters
+                validationService.validateRequiredParameters(fromAccountId, toAccountId, amount);
+                
+                // Perform full validation
+                TransferValidationResult validationResult = validationService.validateTransferParameters(
+                    fromAccountId, toAccountId, amount, referenceId);
+                
+                // If we have an existing transaction, return it (idempotent operation)
+                if (validationResult.existingTransaction() != null) {
+                    return validationResult.existingTransaction();
+                }
+                
+                // Get validated accounts
+                Account fromAccount = validationResult.fromAccount();
+                Account toAccount = validationResult.toAccount();
+                
+                // Get currency from the validation result
+                Currency currency = fromAccount.getCurrency();
+                
+                // Create and save the transaction record
+                Transaction transaction = new Transaction(
+                    fromAccountId, 
+                    toAccountId, 
+                    amount, 
+                    TransactionType.TRANSFER, 
+                    currency, 
+                    referenceId);
+                
+                transaction = transactionRepository.save(transaction);
+                
+                // Store the most recent transaction ID for integration tests
+                mostRecentTransactionId = transaction.getId();
+                
+                // Execute the transaction using double-entry bookkeeping
+                executeTransaction(transaction);
+                
+                return transaction;
+            } catch (Exception e) {
+                // Rollback by throwing the exception
+                // Spring's TransactionTemplate will handle rollback
+                if (status != null) {
+                    status.setRollbackOnly();
+                }
+                throw e;
+            }
         });
     }
     
@@ -149,34 +151,47 @@ public class TransactionService {
      * @throws CurrencyMismatchException if currencies don't match between accounts and transaction
      */
     protected void executeTransaction(Transaction transaction) {
-        UUID fromAccountId = transaction.getFromAccountId();
-        UUID toAccountId = transaction.getToAccountId();
-        BigDecimal amount = transaction.getAmount();
-        Currency currency = transaction.getCurrency();
-        
-        // Verify that the accounts exist and currencies match
-        Account fromAccount = accountRepository.findById(fromAccountId)
-                .orElseThrow(() -> new AccountNotFoundException(fromAccountId));
-        Account toAccount = accountRepository.findById(toAccountId)
-                .orElseThrow(() -> new AccountNotFoundException(toAccountId));
-        
-        // Verify currencies match (both accounts and transaction must have same currency)
-        if (fromAccount.getCurrency() != currency || toAccount.getCurrency() != currency) {
-            throw CurrencyMismatchException.forTransactionAndAccounts(
-                currency, fromAccount.getCurrency(), toAccount.getCurrency());
-        }
-        
-        // Use the DoubleEntryService to create the ledger entries
-        List<LedgerEntry> ledgerEntries = doubleEntryService.createTransferEntries(transaction);
-        
-        // Calculate the new balances from ledger entries for verification
-        BigDecimal fromNewBalance = doubleEntryService.calculateBalance(fromAccountId);
-        
-        // Verify sufficient funds in source account
-        if (fromNewBalance.compareTo(BigDecimal.ZERO) < 0) {
-            throw new InsufficientFundsException(fromAccount.getId(), String.format(
-                "Insufficient funds in account: %s, Current balance: %s, Required amount: %s",
-                fromAccount.getId(), doubleEntryService.calculateBalance(fromAccountId), amount));
+        try {
+            UUID fromAccountId = transaction.getFromAccountId();
+            UUID toAccountId = transaction.getToAccountId();
+            BigDecimal amount = transaction.getAmount();
+            Currency currency = transaction.getCurrency();
+            
+            // Verify that the accounts exist and currencies match
+            Account fromAccount = accountRepository.findById(fromAccountId)
+                    .orElseThrow(() -> new AccountNotFoundException(fromAccountId));
+            Account toAccount = accountRepository.findById(toAccountId)
+                    .orElseThrow(() -> new AccountNotFoundException(toAccountId));
+            
+            // Verify currencies match (both accounts and transaction must have same currency)
+            if (fromAccount.getCurrency() != currency || toAccount.getCurrency() != currency) {
+                throw CurrencyMismatchException.forTransactionAndAccounts(
+                    currency, fromAccount.getCurrency(), toAccount.getCurrency());
+            }
+            
+            // Use the DoubleEntryService to create the ledger entries
+            doubleEntryService.createTransferEntries(transaction);
+            
+            // Calculate the new balances from ledger entries for verification
+            BigDecimal fromNewBalance = doubleEntryService.calculateBalance(fromAccountId);
+            
+            // Verify sufficient funds in source account
+            if (fromNewBalance.compareTo(BigDecimal.ZERO) < 0) {
+                throw new InsufficientFundsException(fromAccount.getId(), String.format(
+                    "Insufficient funds in account: %s, Current balance: %s, Required amount: %s",
+                    fromAccount.getId(), doubleEntryService.calculateBalance(fromAccountId), amount));
+            }
+            
+            // Mark transaction as successful
+            transaction.markSuccess();
+            transactionRepository.save(transaction);
+        } catch (Exception e) {
+            // Mark transaction as failed with reason
+            transaction.markFailed(e.getMessage());
+            transactionRepository.save(transaction);
+            
+            // Re-throw the exception for higher-level handling
+            throw e;
         }
     }
     
@@ -202,12 +217,15 @@ public class TransactionService {
      * @return The current balance
      * @throws AccountNotFoundException if the account doesn't exist
      */
-    public BigDecimal getAccountBalance(UUID accountId) {
-        // Verify account exists first
+    public BigDecimal getBalance(UUID accountId) {
         if (!accountRepository.existsById(accountId)) {
             throw new AccountNotFoundException(accountId);
         }
         
         return doubleEntryService.calculateBalance(accountId);
+    }    
+
+    protected TransactionTemplate getTransactionTemplate() {
+        return this.transactionTemplate;
     }
 } 

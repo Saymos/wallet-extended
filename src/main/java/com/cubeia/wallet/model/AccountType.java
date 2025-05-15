@@ -20,6 +20,16 @@ public sealed interface AccountType permits
     String name();
     
     /**
+     * Get the maximum withdrawal amount for this account type.
+     * Used by the validation service to check if a withdrawal is allowed.
+     * 
+     * @return true if full balance can be withdrawn, false if no withdrawals are allowed
+     */
+    default boolean allowFullBalanceWithdrawal() {
+        return false;
+    }
+    
+    /**
      * Main player account for regular gameplay.
      * In a production system, this would maintain core balance and transaction history.
      */
@@ -29,6 +39,7 @@ public sealed interface AccountType permits
         public static MainAccount getInstance() { return INSTANCE; }
         @Override public String name() { return "MAIN"; }
         @Override public String toString() { return name(); }
+        @Override public boolean allowFullBalanceWithdrawal() { return true; }
     }
     
     /**
@@ -76,6 +87,7 @@ public sealed interface AccountType permits
         public static JackpotAccount getInstance() { return INSTANCE; }
         @Override public String name() { return "JACKPOT"; }
         @Override public String toString() { return name(); }
+        @Override public boolean allowFullBalanceWithdrawal() { return true; }
     }
     
     /**
@@ -92,5 +104,6 @@ public sealed interface AccountType permits
         public static SystemAccount getInstance() { return INSTANCE; }
         @Override public String name() { return "SYSTEM"; }
         @Override public String toString() { return name(); }
+        @Override public boolean allowFullBalanceWithdrawal() { return true; }
     }
 } 

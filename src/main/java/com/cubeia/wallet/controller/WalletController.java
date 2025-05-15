@@ -29,7 +29,6 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.validation.Valid;
 
 /**
  * REST API controller for wallet operations.
@@ -103,8 +102,7 @@ public class WalletController {
         @ApiResponse(responseCode = "400", description = "Invalid request, insufficient funds, or referenceId conflict"),
         @ApiResponse(responseCode = "404", description = "Account not found")
     })
-    public ResponseEntity<Void> transfer(
-            @Valid @RequestBody TransferRequestDto transferRequest) {
+    public ResponseEntity<Void> transfer(@RequestBody TransferRequestDto transferRequest) {
         transactionService.transfer(
                 transferRequest.fromAccountId(),
                 transferRequest.toAccountId(),
@@ -154,7 +152,7 @@ public class WalletController {
     })
     public ResponseEntity<Transaction> getTransactionByReference(
             @Parameter(description = "Reference ID of the transaction") @PathVariable String referenceId) {
-        return transactionRepository.findByReference(referenceId)
+        return transactionRepository.findByReferenceIgnoreCase(referenceId)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }

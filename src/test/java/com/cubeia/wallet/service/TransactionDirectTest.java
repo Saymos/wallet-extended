@@ -51,7 +51,8 @@ public class TransactionDirectTest {
         });
         
         // Verify the exception contains expected information
-        assertTrue(exception.getMessage().contains("exceeds maximum withdrawal amount"));
+        assertTrue(exception.getMessage().contains("Insufficient funds"), 
+            "Exception message should mention 'Insufficient funds'");
     }
     
     @Test

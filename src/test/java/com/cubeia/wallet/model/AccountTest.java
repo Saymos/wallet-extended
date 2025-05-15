@@ -1,6 +1,8 @@
 package com.cubeia.wallet.model;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
 import java.util.Optional;
@@ -10,9 +12,12 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 
 import com.cubeia.wallet.repository.AccountRepository;
+import com.cubeia.wallet.service.DoubleEntryService;
 
 /**
  * Tests for verifying JPA compatibility with Account entity.
@@ -21,6 +26,7 @@ import com.cubeia.wallet.repository.AccountRepository;
  */
 @DataJpaTest
 @ActiveProfiles("test")
+@Import(DoubleEntryService.class)
 public class AccountTest {
 
     @Autowired
@@ -29,11 +35,17 @@ public class AccountTest {
     @Autowired
     private AccountRepository accountRepository;
     
+    @MockBean
+    private DoubleEntryService doubleEntryService;
+    
     /**
      * Test that an Account can be persisted and then retrieved with all properties intact.
      */
     @Test
     public void testPersistAndLoad() {
+        // Set up mock for balance calculation
+        when(doubleEntryService.calculateBalance(any(UUID.class))).thenReturn(BigDecimal.ZERO);
+        
         // Create an account
         Account account = new Account(Currency.EUR, AccountType.MainAccount.getInstance());
         
@@ -49,11 +61,10 @@ public class AccountTest {
         // Assert all properties are maintained correctly
         assertNotNull(retrievedAccount);
         assertEquals(account.getId(), retrievedAccount.getId());
-        // Compare BigDecimals properly
-        assertTrue(BigDecimal.ZERO.compareTo(retrievedAccount.getBalance()) == 0, 
-                "Balance should be zero");
         assertEquals(Currency.EUR, retrievedAccount.getCurrency());
         assertEquals(AccountType.MainAccount.getInstance(), retrievedAccount.getAccountType());
+        
+        // We can't directly test the balance since it's now calculated through a service
     }
     
     /**
@@ -61,6 +72,9 @@ public class AccountTest {
      */
     @Test
     public void testCreatePersistWithAllProperties() {
+        // Set up mock for balance calculation
+        when(doubleEntryService.calculateBalance(any(UUID.class))).thenReturn(BigDecimal.ZERO);
+        
         // Create account
         Account account = new Account(Currency.USD, AccountType.BonusAccount.getInstance());
         
@@ -85,44 +99,13 @@ public class AccountTest {
     }
     
     /**
-     * Test that an account with multiple changes can still be properly persisted and retrieved.
-     */
-    @Test
-    public void testMultipleStateChanges() {
-        // Create account
-        Account account = new Account(Currency.EUR, AccountType.MainAccount.getInstance());
-        
-        // Persist it
-        entityManager.persistAndFlush(account);
-        UUID id = account.getId();
-        
-        // Load it fresh
-        entityManager.clear();
-        Account savedAccount = entityManager.find(Account.class, id);
-        
-        // Update balance using internal method (this tests if JPA can handle updates
-        // to fields that were originally marked as final)
-        BigDecimal newBalance = new BigDecimal("100.00");
-        savedAccount.updateBalance(newBalance);
-        
-        // Persist the change
-        entityManager.persistAndFlush(savedAccount);
-        entityManager.clear();
-        
-        // Load again and verify updates were persisted
-        Account updatedAccount = entityManager.find(Account.class, id);
-        assertTrue(newBalance.compareTo(updatedAccount.getBalance()) == 0, 
-                "Balance should be 100.00");
-        assertEquals(Currency.EUR, updatedAccount.getCurrency());
-    }
-    
-    /**
      * Test creating account using the repository layer directly.
-     * Note that in this simplified test, we focus only on basic JPA operations
-     * and not on the custom repository methods that require transactions.
      */
     @Test
     public void testRepositoryCreateAndFind() {
+        // Set up mock for balance calculation
+        when(doubleEntryService.calculateBalance(any(UUID.class))).thenReturn(BigDecimal.ZERO);
+        
         // Create account using repository
         Account account = new Account(Currency.EUR, AccountType.JackpotAccount.getInstance());
         

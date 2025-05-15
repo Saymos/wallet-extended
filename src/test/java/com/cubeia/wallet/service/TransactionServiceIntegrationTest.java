@@ -1,6 +1,5 @@
 package com.cubeia.wallet.service;
 
-import java.lang.reflect.Field;
 import java.math.BigDecimal;
 import java.util.UUID;
 
@@ -9,6 +8,8 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.annotation.DirtiesContext;
@@ -30,8 +31,10 @@ import com.cubeia.wallet.repository.TransactionRepository;
  * edge cases involving InsufficientFundsException handling.
  */
 @SpringBootTest(classes = WalletApplication.class)
-@DirtiesContext
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 public class TransactionServiceIntegrationTest {
+    
+    private static final Logger log = LoggerFactory.getLogger(TransactionServiceIntegrationTest.class);
     
     @Autowired
     private TransactionService transactionService;
@@ -43,32 +46,40 @@ public class TransactionServiceIntegrationTest {
     private TransactionRepository transactionRepository;
     
     @Autowired
-    private TransactionTemplate transactionTemplate; // Autowire actual Spring TransactionTemplate
+    private TransactionTemplate transactionTemplate;
+    
+    @Autowired
+    private DoubleEntryService doubleEntryService;
     
     /**
-     * Helper method to set account balance using reflection
+     * Helper method to create a system credit for an account
      */
-    private void setAccountBalance(Account account, BigDecimal balance) {
-        try {
-            Field balanceField = Account.class.getDeclaredField("balance");
-            balanceField.setAccessible(true);
-            balanceField.set(account, balance);
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to set balance", e);
-        }
+    private void createSystemCredit(UUID accountId, BigDecimal amount) {
+        transactionTemplate.execute(status -> {
+            doubleEntryService.createSystemCreditEntry(accountId, amount, "System credit for testing");
+            BigDecimal balance = doubleEntryService.calculateBalance(accountId);
+            log.info("Created system credit of {} for account {}. New balance: {}", amount, accountId, balance);
+            return balance;
+        });
+    }
+    
+    /**
+     * Helper method to create and prepare an account
+     */
+    private Account createAndPrepareAccount(Currency currency, AccountType accountType) {
+        Account account = new Account(currency, accountType);
+        account = accountRepository.save(account);
+        return account;
     }
     
     @Test
     @Transactional
     void testInsufficientFundsExceptionHandling() {
         // Create accounts
-        Account fromAccount = new Account(Currency.EUR, AccountType.MainAccount.getInstance());
-        setAccountBalance(fromAccount, new BigDecimal("50.00")); // Only 50 EUR
-        accountRepository.save(fromAccount);
+        final Account fromAccount = createAndPrepareAccount(Currency.EUR, AccountType.MainAccount.getInstance());
+        createSystemCredit(fromAccount.getId(), new BigDecimal("50.00")); // Only 50 EUR
         
-        Account toAccount = new Account(Currency.EUR, AccountType.MainAccount.getInstance());
-        setAccountBalance(toAccount, BigDecimal.ZERO);
-        accountRepository.save(toAccount);
+        final Account toAccount = createAndPrepareAccount(Currency.EUR, AccountType.MainAccount.getInstance());
         
         BigDecimal transferAmount = new BigDecimal("100.00"); // More than available
         
@@ -85,13 +96,10 @@ public class TransactionServiceIntegrationTest {
     @Transactional
     void testOtherIllegalArgumentException() {
         // Create accounts
-        Account fromAccount = new Account(Currency.EUR, AccountType.MainAccount.getInstance());
-        setAccountBalance(fromAccount, new BigDecimal("100.00"));
-        accountRepository.save(fromAccount);
+        final Account fromAccount = createAndPrepareAccount(Currency.EUR, AccountType.MainAccount.getInstance());
+        createSystemCredit(fromAccount.getId(), new BigDecimal("100.00"));
         
-        Account toAccount = new Account(Currency.USD, AccountType.MainAccount.getInstance()); // Different currency
-        setAccountBalance(toAccount, BigDecimal.ZERO);
-        accountRepository.save(toAccount);
+        final Account toAccount = createAndPrepareAccount(Currency.USD, AccountType.MainAccount.getInstance()); // Different currency
         
         BigDecimal transferAmount = new BigDecimal("50.00");
         
@@ -105,80 +113,120 @@ public class TransactionServiceIntegrationTest {
     
     @Test
     void testTransactionTemplateIsolation() {
-        // Create accounts
-        Account fromAccount = new Account(Currency.EUR, AccountType.MainAccount.getInstance());
-        setAccountBalance(fromAccount, new BigDecimal("200.00"));
-        fromAccount = accountRepository.save(fromAccount);
+        // Execute in a transaction to ensure all setup operations are committed
+        final Account[] accounts = transactionTemplate.execute(status -> {
+            Account from = createAndPrepareAccount(Currency.EUR, AccountType.MainAccount.getInstance());
+            Account to = createAndPrepareAccount(Currency.EUR, AccountType.MainAccount.getInstance());
+            
+            // Create system credits to fund the accounts within the transaction
+            doubleEntryService.createSystemCreditEntry(from.getId(), new BigDecimal("500.00"), "System credit for testing");
+            doubleEntryService.createSystemCreditEntry(to.getId(), new BigDecimal("50.00"), "System credit for testing");
+            
+            // Verify initial balances to ensure credits were applied
+            BigDecimal initialFromBalance = doubleEntryService.calculateBalance(from.getId());
+            BigDecimal initialToBalance = doubleEntryService.calculateBalance(to.getId());
+            
+            log.info("Source account {} funded with balance {}", from.getId(), initialFromBalance);
+            log.info("Destination account {} funded with balance {}", to.getId(), initialToBalance);
+            
+            assertEquals(0, new BigDecimal("500.00").compareTo(initialFromBalance),
+                    "Source account should start with 500.00");
+            assertEquals(0, new BigDecimal("50.00").compareTo(initialToBalance),
+                    "Destination account should start with 50.00");
+            
+            return new Account[] { from, to };
+        });
         
-        Account toAccount = new Account(Currency.EUR, AccountType.MainAccount.getInstance());
-        setAccountBalance(toAccount, new BigDecimal("50.00"));
-        toAccount = accountRepository.save(toAccount);
+        // Capture the account IDs for use outside the transaction
+        final Account fromAccount = accounts[0];
+        final Account toAccount = accounts[1];
+        
+        final UUID fromAccountId = fromAccount.getId();
+        final UUID toAccountId = toAccount.getId();
         
         BigDecimal transferAmount = new BigDecimal("75.00");
         
         // Execute transfer and verify it completes atomically
         Transaction transaction = transactionService.transfer(
-                fromAccount.getId(), toAccount.getId(), transferAmount);
+                fromAccountId, toAccountId, transferAmount);
         
         // Verify the transaction details
         assertNotNull(transaction);
         assertNotNull(transaction.getId());
-        assertEquals(fromAccount.getId(), transaction.getFromAccountId());
-        assertEquals(toAccount.getId(), transaction.getToAccountId());
+        assertEquals(fromAccountId, transaction.getFromAccountId());
+        assertEquals(toAccountId, transaction.getToAccountId());
         assertEquals(transferAmount, transaction.getAmount());
         
-        // Reload accounts to get current state
-        Account updatedFromAccount = accountRepository.findById(fromAccount.getId()).orElseThrow();
-        Account updatedToAccount = accountRepository.findById(toAccount.getId()).orElseThrow();
-        
         // Verify account balances
-        assertEquals(0, new BigDecimal("125.00").compareTo(updatedFromAccount.getBalance()),
-                "Source account balance should be 125.00");
-        assertEquals(0, new BigDecimal("125.00").compareTo(updatedToAccount.getBalance()),
+        assertEquals(0, new BigDecimal("425.00").compareTo(doubleEntryService.calculateBalance(fromAccountId)),
+                "Source account balance should be 425.00");
+        assertEquals(0, new BigDecimal("125.00").compareTo(doubleEntryService.calculateBalance(toAccountId)),
                 "Destination account balance should be 125.00");
     }
     
     @Test
     void testIdempotencyWithTransactionTemplate() {
-        // Create accounts
-        Account fromAccount = new Account(Currency.EUR, AccountType.MainAccount.getInstance());
-        setAccountBalance(fromAccount, new BigDecimal("200.00"));
-        fromAccount = accountRepository.save(fromAccount);
+        // Execute in a transaction to ensure all setup operations are committed
+        final Account[] accounts = transactionTemplate.execute(status -> {
+            Account from = createAndPrepareAccount(Currency.EUR, AccountType.MainAccount.getInstance());
+            Account to = createAndPrepareAccount(Currency.EUR, AccountType.MainAccount.getInstance());
+            
+            // Create system credits to fund the accounts within the transaction
+            doubleEntryService.createSystemCreditEntry(from.getId(), new BigDecimal("500.00"), "System credit for testing");
+            doubleEntryService.createSystemCreditEntry(to.getId(), new BigDecimal("50.00"), "System credit for testing");
+            
+            // Verify initial balances to ensure credits were applied
+            BigDecimal initialFromBalance = doubleEntryService.calculateBalance(from.getId());
+            BigDecimal initialToBalance = doubleEntryService.calculateBalance(to.getId());
+            
+            log.info("Source account {} funded with balance {}", from.getId(), initialFromBalance);
+            log.info("Destination account {} funded with balance {}", to.getId(), initialToBalance);
+            
+            assertEquals(0, new BigDecimal("500.00").compareTo(initialFromBalance),
+                    "Source account should start with 500.00");
+            assertEquals(0, new BigDecimal("50.00").compareTo(initialToBalance),
+                    "Destination account should start with 50.00");
+            
+            return new Account[] { from, to };
+        });
         
-        Account toAccount = new Account(Currency.EUR, AccountType.MainAccount.getInstance());
-        setAccountBalance(toAccount, new BigDecimal("50.00"));
-        toAccount = accountRepository.save(toAccount);
+        // Capture the account IDs for use outside the transaction
+        final Account fromAccount = accounts[0];
+        final Account toAccount = accounts[1];
+        
+        final UUID fromAccountId = fromAccount.getId();
+        final UUID toAccountId = toAccount.getId();
         
         BigDecimal transferAmount = new BigDecimal("75.00");
         String referenceId = "IDEMPOTENCY-TEST-" + UUID.randomUUID();
         
         // Execute first transfer
         Transaction firstTransaction = transactionService.transfer(
-                fromAccount.getId(), toAccount.getId(), transferAmount, referenceId);
+                fromAccountId, toAccountId, transferAmount, referenceId);
         
-        // Reload accounts to get current state after first transfer
-        Account afterFirstFromAccount = accountRepository.findById(fromAccount.getId()).orElseThrow();
-        Account afterFirstToAccount = accountRepository.findById(toAccount.getId()).orElseThrow();
+        // Get balances after first transfer
+        BigDecimal fromBalanceAfterFirst = doubleEntryService.calculateBalance(fromAccountId);
+        BigDecimal toBalanceAfterFirst = doubleEntryService.calculateBalance(toAccountId);
         
         // Execute second transfer with same reference ID
         Transaction secondTransaction = transactionService.transfer(
-                fromAccount.getId(), toAccount.getId(), transferAmount, referenceId);
+                fromAccountId, toAccountId, transferAmount, referenceId);
         
         // Verify it's the same transaction
         assertEquals(firstTransaction.getId(), secondTransaction.getId());
         
-        // Reload accounts to get current state after second transfer attempt
-        Account afterSecondFromAccount = accountRepository.findById(fromAccount.getId()).orElseThrow();
-        Account afterSecondToAccount = accountRepository.findById(toAccount.getId()).orElseThrow();
+        // Get balances after second transfer attempt
+        BigDecimal fromBalanceAfterSecond = doubleEntryService.calculateBalance(fromAccountId);
+        BigDecimal toBalanceAfterSecond = doubleEntryService.calculateBalance(toAccountId);
         
         // Verify account balances haven't changed after second attempt
-        assertEquals(afterFirstFromAccount.getBalance(), afterSecondFromAccount.getBalance());
-        assertEquals(afterFirstToAccount.getBalance(), afterSecondToAccount.getBalance());
+        assertEquals(fromBalanceAfterFirst, fromBalanceAfterSecond);
+        assertEquals(toBalanceAfterFirst, toBalanceAfterSecond);
         
         // Verify final balances
-        assertEquals(0, new BigDecimal("125.00").compareTo(afterSecondFromAccount.getBalance()),
-                "Source account balance should be 125.00");
-        assertEquals(0, new BigDecimal("125.00").compareTo(afterSecondToAccount.getBalance()),
+        assertEquals(0, new BigDecimal("425.00").compareTo(fromBalanceAfterSecond),
+                "Source account balance should be 425.00");
+        assertEquals(0, new BigDecimal("125.00").compareTo(toBalanceAfterSecond),
                 "Destination account balance should be 125.00");
     }
 } 

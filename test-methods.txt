@@ -1,0 +1,217 @@
+﻿public void testSerializeMainAccount() throws Exception {
+public void testSerializeNullAccount() throws Exception {
+public void testDeserializeMainAccount() throws Exception {
+public void testDeserializeBonusAccount() throws Exception {
+public void testDeserializePendingAccount() throws Exception {
+public void testDeserializeJackpotAccount() throws Exception {
+public void testDeserializeNullAccount() throws Exception {
+public void testDeserializeInvalidAccountType() {
+public void testSerializeNullAccountType() throws Exception {
+public void testDeserializeNullAccountType() throws Exception {
+private void setAccountBalance(Account account, BigDecimal balance) {
+public void getBalance_NonExistentAccount_Returns404() {
+public void transfer_InsufficientFunds_Returns400() {
+public void transfer_InvalidAmountZero_Returns400() {
+public void transfer_CurrencyMismatch_Returns400() {
+public void transfer_missingRequiredField_Returns400() {
+void setUp() {
+void testGetTransactionHistory() throws Exception {
+void testGetAccountLedger() throws Exception {
+void testGetAccountStatement() throws Exception {
+public void setup() {
+public void transfer_InsufficientFunds_ShouldReturnError() {
+public void transfer_CurrencyMismatch_ShouldReturnError() {
+public void transfer_DuplicateReferenceWithDifferentParameters_ShouldReturnError() {
+public void transfer_AccountNotFound_ShouldReturnError() {
+public void transfer_ValidParameters_ShouldSucceed() {
+public void setup() {
+public void transfer_NullFromAccount_ShouldReturnValidationError() {
+public void transfer_NullToAccount_ShouldReturnValidationError() {
+public void transfer_ZeroAmount_ShouldReturnValidationError() {
+public void transfer_NegativeAmount_ShouldReturnValidationError() {
+public void transfer_NullAmount_ShouldReturnValidationError() {
+public void transfer_InvalidAccountFormat_ShouldReturnError() {
+public void transfer_InvalidAmountFormat_ShouldReturnError() {
+public void setup() {
+public void testIdempotentTransfer() throws Exception {
+public void testGetTransactionByReferenceId() throws Exception {
+public void testGetTransactionByReferenceIdCaseInsensitive() throws Exception {
+public void setup() {
+public void createAccount_ShouldReturnCreatedAccountWithZeroBalance() {
+public void getBalance_ShouldReturnCorrectBalance() {
+public void getBalance_ShouldReturn404ForNonExistentAccount() {
+public void transfer_ShouldSuccessfullyTransferFundsBetweenAccounts() {
+public void transfer_ShouldFailWithInsufficientFunds() {
+public void transfer_ShouldFailWithNonExistentAccount() {
+public void transfer_ShouldRejectInvalidAmount() {
+public void getTransactions_ShouldReturnAccountTransactions() {
+public void getTransactions_ShouldReturn404ForNonExistentAccount() {
+public void concurrentTransfers_ShouldMaintainDataConsistency() throws InterruptedException {
+void accountNotFoundException_WithMessage() {
+void accountNotFoundException_WithAccountId() {
+void insufficientFundsException_WithMessage() {
+void insufficientFundsException_WithAccountIdAndReason() {
+void errorResponse_Constructor() {
+void validationErrorResponse_Constructor() {
+void setUp() {
+void handleAccountNotFoundException() {
+void handleInsufficientFundsException() {
+void handleCurrencyMismatchException() {
+void handleInvalidTransactionException() {
+void handleInvalidTransactionExceptionWithId() {
+void handleValidationExceptions() {
+void handleIllegalArgumentException() {
+void handleTypeMismatch() {
+void handleHttpMessageNotReadable() {
+void handleGlobalException() {
+public void testPersistAndLoad() {
+public void testCreatePersistWithAllProperties() {
+public void testBalanceCalculation() {
+public void testAccountTypeWithdrawalPolicy() {
+public void testRepositoryCreateAndFind() {
+void convertToDatabaseColumn_ShouldReturnNullForNullInput() {
+void convertToDatabaseColumn_ShouldReturnAccountTypeName() {
+void convertToEntityAttribute_ShouldReturnNullForNullInput() {
+void convertToEntityAttribute_ShouldReturnAccountTypeForValidString() {
+void convertToEntityAttribute_ShouldThrowForInvalidString() {
+public void testMainAccountSingleton() {
+public void testBonusAccountSingleton() {
+public void testPendingAccountSingleton() {
+public void testJackpotAccountSingleton() {
+public void setUp() {
+public void testPersistenceWithJPA() {
+public void testEntryTypesWithSignedAmount() {
+public void testNullFieldValidation() {
+public void testAmountValidation() {
+public void testDescriptionIsOptional() {
+public void testImmutability() {
+public void testAbsoluteAmountStorage() {
+public void executeTransaction(Transaction transaction) {
+void setUp() {
+void account_DefaultConstructor() {
+void account_ParameterizedConstructor() {
+private void setAccountId(Account account, UUID id) {
+private void setupAccountBalance(Account account, BigDecimal balance) {
+void transaction_Execute() {
+void transaction_VerifyDoubleEntryArchitecture() {
+void transaction_Execute_InsufficientFunds() {
+void transaction_Execute_CurrencyMismatch() {
+void transaction_Constructor() {
+void transaction_NegativeAmount() {
+void accountType_WithdrawalLimits() {
+void transaction_Execute_FromAccountNotFound() {
+void transaction_Execute_ToAccountNotFound() {
+void accountNotFound_VerifyExceptionHandling() {
+public static void setAccountId(Account account, UUID id) {
+public static void mockAccountBalance(Account account, BigDecimal balance) {
+void setUp() {
+private void createSystemCredit(UUID accountId, BigDecimal amount) {
+void shouldSaveAccount() {
+void shouldFindAccountById() {
+void shouldFindAccountByIdWithLock() {
+void shouldTrackAccountBalanceChanges() {
+void shouldReturnEmptyOptionalForNonExistentAccount() {
+public void setUp() {
+public void testFindByAccountIdOrderByTimestampDesc() {
+public void testFindByTransactionId() {
+public void testSumByAccountIdAndType() {
+public void testCalculateBalance() {
+public void testFindByAccountIdAndEntryTypeOrderByTimestampDesc() {
+public void testReferenceUniqueness() {
+public void testCaseInsensitiveReferenceLookup() {
+void shouldSaveTransaction() {
+void shouldFindTransactionById() {
+void shouldFindTransactionsByAccountId() {
+void shouldReturnEmptyListForAccountWithNoTransactions() {
+void shouldFindTransactionByReference() {
+void shouldFindTransactionByReferenceIgnoreCase() {
+void shouldEnforceReferenceUniqueness() {
+void setUp() {
+private void setAccountId(Account account, UUID id) {
+void createAccount_ShouldCreateAccountWithZeroBalanceAndDefaultCurrency() {
+void createAccount_ShouldCreateAccountWithSpecificCurrencyAndType() {
+void getBalance_ShouldReturnCorrectBalance() {
+void getBalance_ShouldThrowAccountNotFoundException() {
+void getAccount_ShouldReturnAccountWithCorrectCurrencyAndType() {
+private void createSystemCredit(Account account, BigDecimal amount) {
+public void testConcurrentOppositeTransfers() {
+public void testManyConcurrentTransfersToSameAccount() {
+private void await(CountDownLatch latch) {
+private void setField(Object target, String fieldName, Object value) throws Exception {
+private void callExecuteTransaction(TransactionService service, Transaction tx) throws Exception {
+public void testExecuteWithInsufficientFunds() throws Exception {
+public void testDirectExecuteWithInsufficientFunds() throws Exception {
+public void setUp() {
+void createTransferEntries_ShouldCreateBalancedEntries() {
+void calculateBalance_ShouldDelegateToCreditMinusDebit() {
+void createSystemCreditEntry_ShouldCreateCredit() {
+void moneyIsNeitherCreatedNorDestroyed() {
+private void setTransactionId(Transaction transaction, UUID id) {
+private void setField(Object target, String fieldName, Object value) throws Exception {
+public void testExecuteWithInsufficientFunds() throws Exception {
+public void testDirectExecuteWithInsufficientFunds() throws Exception {
+public void executeTransaction(Transaction transaction) {
+void setUp() {
+void testGetTransactionHistory() {
+void testGetAccountLedger() {
+void testGetAccountStatement() {
+public void testInsufficientFundsExceptionHandling() {
+public void testCurrencyMismatchException() {
+private void createSystemCredit(UUID accountId, BigDecimal amount) {
+void testInsufficientFundsExceptionHandling() {
+void testOtherIllegalArgumentException() {
+void testTransactionTemplateIsolation() {
+void testIdempotencyWithTransactionTemplate() {
+void setUp() {
+private void setAccountId(Account account, UUID id) {
+private void mockAccountBalance(UUID accountId, BigDecimal balance) {
+void transfer_ShouldSuccessfullyTransferFundsUsingDoubleEntry() {
+void transfer_ShouldThrowInsufficientFundsException() {
+void transfer_ShouldThrowAccountNotFoundExceptionForSender() {
+void transfer_ShouldThrowAccountNotFoundExceptionForReceiver() {
+void transfer_ShouldRejectCurrencyMismatch() {
+void transfer_ShouldWorkBetweenDifferentAccountTypes() {
+void getAccountTransactions_ShouldThrowForNonExistentAccount() {
+void getAccountTransactions_ShouldReturnTransactions() {
+void transfer_WithTransactionTemplate_ShouldCommitChanges() {
+void transfer_WithTransactionTemplate_ShouldRollBackOnException() {
+void transfer_WithTransactionTemplate_ShouldUseProperIsolation() {
+void transfer_ShouldReturnExistingTransactionForIdempotency() {
+private void setAccountId(Account account, UUID id) {
+void setup() {
+void validateTransferParameters_ShouldReturnAccountsWhenValid() {
+void validateTransferParameters_ShouldThrowWhenFromAccountNotFound() {
+void validateTransferParameters_ShouldThrowWhenToAccountNotFound() {
+void validateTransferParameters_ShouldThrowOnCurrencyMismatch() {
+void validateTransferParameters_ShouldThrowOnDuplicateReferenceWithDifferentParameters() {
+void validateTransferParameters_ShouldPassWithIdenticalDuplicateTransaction() {
+void validateSufficientFunds_ShouldThrowOnInsufficientFunds() {
+void validateSufficientFunds_ShouldPassWithSufficientFunds() {
+void validateSufficientFunds_ShouldRespectAccountType() {
+void validateExistingTransactionMatch_ShouldPassWhenParametersMatch() {
+void validateExistingTransactionMatch_ShouldThrowWhenFromAccountDiffers() {
+void validateExistingTransactionMatch_ShouldThrowWhenToAccountDiffers() {
+void validateExistingTransactionMatch_ShouldThrowWhenAmountDiffers() {
+void setUp() {
+void testManyToOneTransfers() throws InterruptedException {
+void testOneToManyTransfers() throws InterruptedException {
+void testDoubleEntryIntegrityUnderConcurrency() throws InterruptedException {
+void testDeadlockPrevention() throws InterruptedException {
+public void setup() {
+public void testNoMoneyCreatedOrDestroyed() {
+public void testLedgerBalancing() {
+public void testChainedTransfers() {
+public void testConcurrentHighVolumeTransfers() throws Exception {
+public void testConcurrentTransfersWithSharedAccounts() throws Exception {
+void performanceTestManyToMany() throws InterruptedException {
+void performanceTestHighContention() throws InterruptedException {
+void performanceTestBalanceCalculation() throws InterruptedException {
+private void setupTestAccounts() {
+public void setup() {
+public void testFirstTransactionWithReferenceId() {
+public void testDuplicateTransactionWithSameReferenceId() {
+public void testDuplicateReferenceIdWithDifferentParameters() {
+public void testTransactionsWithNullReferenceId() {
+private void setField(Object target, String fieldName, Object value) {
+void main_ShouldStartApplication() {
+void contextLoads() {

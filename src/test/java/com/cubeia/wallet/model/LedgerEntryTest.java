@@ -27,6 +27,7 @@ public class LedgerEntryTest {
     private UUID transactionId;
     private final BigDecimal amount = new BigDecimal("100.00");
     private final String description = "Test ledger entry";
+    private final Currency currency = Currency.EUR;
 
     @BeforeEach
     public void setUp() {
@@ -43,6 +44,7 @@ public class LedgerEntryTest {
                 .entryType(EntryType.DEBIT)
                 .amount(amount)
                 .description(description)
+                .currency(currency)
                 .build();
 
         // Persist the entry
@@ -55,6 +57,7 @@ public class LedgerEntryTest {
         assertEquals(EntryType.DEBIT, savedEntry.getEntryType(), "Entry type should match");
         assertEquals(0, amount.compareTo(savedEntry.getAmount()), "Amount should match");
         assertEquals(description, savedEntry.getDescription(), "Description should match");
+        assertEquals(currency, savedEntry.getCurrency(), "Currency should match");
         assertNotNull(savedEntry.getTimestamp(), "Timestamp should be generated");
     }
 
@@ -67,6 +70,7 @@ public class LedgerEntryTest {
                 .entryType(EntryType.DEBIT)
                 .amount(amount)
                 .description(description)
+                .currency(currency)
                 .build();
 
         // Create a credit entry
@@ -76,6 +80,7 @@ public class LedgerEntryTest {
                 .entryType(EntryType.CREDIT)
                 .amount(amount)
                 .description(description)
+                .currency(currency)
                 .build();
 
         // Verify signed amounts
@@ -93,6 +98,7 @@ public class LedgerEntryTest {
                 .entryType(EntryType.DEBIT)
                 .amount(amount)
                 .description(description)
+                .currency(currency)
                 .build(),
             "Should validate accountId is not null");
 
@@ -104,6 +110,7 @@ public class LedgerEntryTest {
                 .entryType(EntryType.DEBIT)
                 .amount(amount)
                 .description(description)
+                .currency(currency)
                 .build(),
             "Should validate transactionId is not null");
 
@@ -115,6 +122,7 @@ public class LedgerEntryTest {
                 .entryType(null)
                 .amount(amount)
                 .description(description)
+                .currency(currency)
                 .build(),
             "Should validate entryType is not null");
 
@@ -126,8 +134,21 @@ public class LedgerEntryTest {
                 .entryType(EntryType.DEBIT)
                 .amount(null)
                 .description(description)
+                .currency(currency)
                 .build(),
             "Should validate amount is not null");
+            
+        // Currency
+        assertThrows(IllegalArgumentException.class, () -> 
+            LedgerEntry.builder()
+                .accountId(accountId)
+                .transactionId(transactionId)
+                .entryType(EntryType.DEBIT)
+                .amount(amount)
+                .description(description)
+                .currency(null)
+                .build(),
+            "Should validate currency is not null");
     }
     
     @Test
@@ -140,6 +161,7 @@ public class LedgerEntryTest {
                 .entryType(EntryType.DEBIT)
                 .amount(BigDecimal.ZERO)
                 .description(description)
+                .currency(currency)
                 .build(),
             "Should validate amount is positive");
 
@@ -151,6 +173,7 @@ public class LedgerEntryTest {
                 .entryType(EntryType.DEBIT)
                 .amount(new BigDecimal("0.00"))
                 .description(description)
+                .currency(currency)
                 .build(),
             "Should validate amount is positive");
     }
@@ -163,6 +186,7 @@ public class LedgerEntryTest {
                 .transactionId(transactionId)
                 .entryType(EntryType.CREDIT)
                 .amount(amount)
+                .currency(currency)
                 .build();
                 
         // Persist and verify
@@ -179,6 +203,7 @@ public class LedgerEntryTest {
                 .entryType(EntryType.CREDIT)
                 .amount(amount)
                 .description(description)
+                .currency(currency)
                 .build();
                 
         LedgerEntry savedEntry = entityManager.persistFlushFind(entry);
@@ -208,6 +233,7 @@ public class LedgerEntryTest {
                 .entryType(EntryType.DEBIT)
                 .amount(new BigDecimal("-50.00"))
                 .description(description)
+                .currency(currency)
                 .build();
                 
         // Verify that the amount is stored as absolute value

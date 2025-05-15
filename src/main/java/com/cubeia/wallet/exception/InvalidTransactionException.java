@@ -18,7 +18,7 @@ public class InvalidTransactionException extends RuntimeException {
     private static final String INVALID_TRANSACTION_TEMPLATE = "Invalid transaction: %s";
     private static final String DUPLICATE_REFERENCE_TEMPLATE = 
             "Transaction with reference ID '%s' already exists with different parameters";
-    private static final String NON_POSITIVE_AMOUNT_MESSAGE = "Transaction amount must be positive";
+    private static final String NON_POSITIVE_AMOUNT_MESSAGE = "Amount must be positive";
 
     /**
      * Constructs a new exception with the specified transaction ID and reason.

@@ -99,6 +99,7 @@ public class ReportingServiceTest {
                 .entryType(EntryType.DEBIT)
                 .amount(new BigDecimal("100.00"))
                 .description("Test debit")
+                .currency(Currency.EUR)
                 .build();
         
         creditEntry = LedgerEntry.builder()
@@ -107,6 +108,7 @@ public class ReportingServiceTest {
                 .entryType(EntryType.CREDIT)
                 .amount(new BigDecimal("100.00"))
                 .description("Test credit")
+                .currency(Currency.EUR)
                 .build();
     }
 
@@ -141,6 +143,7 @@ public class ReportingServiceTest {
                 .entryType(EntryType.CREDIT)
                 .amount(new BigDecimal("50.00"))
                 .description("Credit test")
+                .currency(Currency.EUR)
                 .build();
         
         LedgerEntry entry2 = LedgerEntry.builder()
@@ -149,6 +152,7 @@ public class ReportingServiceTest {
                 .entryType(EntryType.DEBIT)
                 .amount(new BigDecimal("30.00"))
                 .description("Debit test")
+                .currency(Currency.EUR)
                 .build();
         
         List<LedgerEntry> entries = new ArrayList<>(Arrays.asList(entry2, entry1)); // Descending order by timestamp
@@ -183,6 +187,7 @@ public class ReportingServiceTest {
                 .entryType(EntryType.CREDIT)
                 .amount(new BigDecimal("200.00"))
                 .description("Opening balance")
+                .currency(Currency.EUR)
                 .build();
         
         // Entries in the period
@@ -192,6 +197,7 @@ public class ReportingServiceTest {
                 .entryType(EntryType.DEBIT)
                 .amount(new BigDecimal("50.00"))
                 .description("Withdrawal")
+                .currency(Currency.EUR)
                 .build();
         
         LedgerEntry entry3 = LedgerEntry.builder()
@@ -200,6 +206,7 @@ public class ReportingServiceTest {
                 .entryType(EntryType.CREDIT)
                 .amount(new BigDecimal("75.00"))
                 .description("Deposit")
+                .currency(Currency.EUR)
                 .build();
         
         when(accountRepository.findById(accountId)).thenReturn(Optional.of(account));

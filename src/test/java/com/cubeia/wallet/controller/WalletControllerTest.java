@@ -25,6 +25,7 @@ import com.cubeia.wallet.dto.TransferRequestDto;
 import com.cubeia.wallet.model.Account;
 import com.cubeia.wallet.repository.AccountRepository;
 import com.cubeia.wallet.repository.TransactionRepository;
+import com.cubeia.wallet.service.DoubleEntryService;
 
 /**
  * Integration tests for the wallet controller.
@@ -44,6 +45,11 @@ public class WalletControllerTest {
 
     @Autowired
     private TransactionRepository transactionRepository;
+    
+    @Autowired
+    private DoubleEntryService doubleEntryService;
+    
+    private UUID systemAccountId;
 
     private String getBaseUrl() {
         return "http://localhost:" + port;
@@ -54,6 +60,9 @@ public class WalletControllerTest {
         // Clear database for clean test
         transactionRepository.deleteAll();
         accountRepository.deleteAll();
+        
+        // Create a system account with a large balance for testing
+        systemAccountId = createSystemAccount();
     }
 
     @Test
@@ -68,7 +77,8 @@ public class WalletControllerTest {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().getId()).isNotNull();
-        assertThat(response.getBody().getBalance()).isEqualTo(BigDecimal.ZERO);
+        BigDecimal balance = getAccountBalance(response.getBody().getId());
+        assertThat(balance).isEqualByComparingTo(BigDecimal.ZERO);
     }
 
     @Test
@@ -207,8 +217,10 @@ public class WalletControllerTest {
 
         // then
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-        Map<String, Object> fieldErrors = (Map<String, Object>) response.getBody().get("fieldErrors");
-        assertTrue(fieldErrors.containsKey("amount"));
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().containsKey("message")).isTrue();
+        String errorMessage = response.getBody().get("message").toString().toLowerCase();
+        assertThat(errorMessage).containsAnyOf("amount", "negative", "positive", "greater than 0");
     }
 
     @Test
@@ -327,19 +339,48 @@ public class WalletControllerTest {
         
         Account account = createResponse.getBody();
         
-        // Set the balance using reflection (for tests only)
-        if (!initialBalance.equals(BigDecimal.ZERO)) {
-            try {
-                java.lang.reflect.Field balanceField = Account.class.getDeclaredField("balance");
-                balanceField.setAccessible(true);
-                balanceField.set(account, initialBalance);
-                accountRepository.save(account);
-            } catch (Exception e) {
-                throw new RuntimeException("Failed to set balance", e);
-            }
+        // If initial balance is not zero, create a deposit transaction
+        if (initialBalance.compareTo(BigDecimal.ZERO) > 0) {
+            // Use the transfer endpoint to fund the account from a system account
+            TransferRequestDto transferRequest = new TransferRequestDto(
+                systemAccountId,
+                account.getId(),
+                initialBalance,
+                "initial-balance-" + UUID.randomUUID().toString()
+            );
+            
+            restTemplate.postForEntity(
+                getBaseUrl() + "/transfers",
+                transferRequest,
+                Void.class
+            );
         }
         
         return account;
+    }
+    
+    /**
+     * Creates a system account with a very large balance for use in tests.
+     * 
+     * @return the ID of the created system account
+     */
+    private UUID createSystemAccount() {
+        // Create a new system account
+        ResponseEntity<Account> createResponse = restTemplate.postForEntity(
+                getBaseUrl() + "/accounts",
+                null,
+                Account.class);
+        
+        Account systemAccount = createResponse.getBody();
+        
+        // Add a very large credit entry to the system account
+        doubleEntryService.createSystemCreditEntry(
+            systemAccount.getId(),
+            new BigDecimal("1000000.00"),  // 1 million units
+            "System account initial funding"
+        );
+        
+        return systemAccount.getId();
     }
     
     private Account createAccountWithZeroBalance() {

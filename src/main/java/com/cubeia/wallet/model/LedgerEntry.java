@@ -12,6 +12,7 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.NotNull;
@@ -31,7 +32,11 @@ import jakarta.validation.constraints.Positive;
  * @see Transaction
  */
 @Entity
-@Table(name = "ledger_entries")
+@Table(name = "ledger_entries",
+    indexes = {
+        @Index(name = "idx_ledger_entry_account", columnList = "accountId")
+    }
+)
 public class LedgerEntry {
 
     @Id

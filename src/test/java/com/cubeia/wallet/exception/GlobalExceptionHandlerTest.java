@@ -41,7 +41,7 @@ class GlobalExceptionHandlerTest {
         AccountNotFoundException ex = new AccountNotFoundException(accountId);
 
         // Act
-        ResponseEntity<ErrorResponse> response = exceptionHandler.handleAccountNotFoundException(ex, webRequest);
+        ResponseEntity<ErrorResponse> response = exceptionHandler.handleAccountNotFoundException(ex);
 
         // Assert
         assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
@@ -60,7 +60,7 @@ class GlobalExceptionHandlerTest {
         InsufficientFundsException ex = new InsufficientFundsException(accountId, reason);
 
         // Act
-        ResponseEntity<ErrorResponse> response = exceptionHandler.handleInsufficientFundsException(ex, webRequest);
+        ResponseEntity<ErrorResponse> response = exceptionHandler.handleInsufficientFundsException(ex);
 
         // Assert
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
@@ -76,7 +76,7 @@ class GlobalExceptionHandlerTest {
         CurrencyMismatchException ex = new CurrencyMismatchException(Currency.EUR, Currency.USD);
 
         // Act
-        ResponseEntity<ErrorResponse> response = exceptionHandler.handleCurrencyMismatchException(ex, webRequest);
+        ResponseEntity<ErrorResponse> response = exceptionHandler.handleCurrencyMismatchException(ex);
 
         // Assert
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
@@ -93,7 +93,7 @@ class GlobalExceptionHandlerTest {
         InvalidTransactionException ex = new InvalidTransactionException(reason);
 
         // Act
-        ResponseEntity<ErrorResponse> response = exceptionHandler.handleInvalidTransactionException(ex, webRequest);
+        ResponseEntity<ErrorResponse> response = exceptionHandler.handleInvalidTransactionException(ex);
 
         // Assert
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
@@ -111,7 +111,7 @@ class GlobalExceptionHandlerTest {
         InvalidTransactionException ex = new InvalidTransactionException(transactionId, reason);
 
         // Act
-        ResponseEntity<ErrorResponse> response = exceptionHandler.handleInvalidTransactionException(ex, webRequest);
+        ResponseEntity<ErrorResponse> response = exceptionHandler.handleInvalidTransactionException(ex);
 
         // Assert
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
@@ -133,7 +133,7 @@ class GlobalExceptionHandlerTest {
         when(bindingResult.getAllErrors()).thenReturn(new ArrayList<>(fieldErrors));
 
         // Act
-        ResponseEntity<ValidationErrorResponse> response = exceptionHandler.handleValidationExceptions(ex, webRequest);
+        ResponseEntity<ValidationErrorResponse> response = exceptionHandler.handleValidationExceptions(ex);
 
         // Assert
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
@@ -152,7 +152,7 @@ class GlobalExceptionHandlerTest {
         IllegalArgumentException ex = new IllegalArgumentException("Illegal argument");
 
         // Act
-        ResponseEntity<ErrorResponse> response = exceptionHandler.handleIllegalArgumentException(ex, webRequest);
+        ResponseEntity<ErrorResponse> response = exceptionHandler.handleIllegalArgumentException(ex);
 
         // Assert
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
@@ -170,7 +170,7 @@ class GlobalExceptionHandlerTest {
         when(ex.getValue()).thenReturn("invalidValue");
 
         // Act
-        ResponseEntity<ErrorResponse> response = exceptionHandler.handleTypeMismatch(ex, webRequest);
+        ResponseEntity<ErrorResponse> response = exceptionHandler.handleTypeMismatch(ex);
 
         // Assert
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
@@ -188,7 +188,7 @@ class GlobalExceptionHandlerTest {
         when(ex.getMessage()).thenReturn("Invalid JSON");
 
         // Act
-        ResponseEntity<ErrorResponse> response = exceptionHandler.handleHttpMessageNotReadable(ex, webRequest);
+        ResponseEntity<ErrorResponse> response = exceptionHandler.handleHttpMessageNotReadable(ex);
 
         // Assert
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
@@ -204,7 +204,7 @@ class GlobalExceptionHandlerTest {
         Exception ex = new Exception("Unknown error");
 
         // Act
-        ResponseEntity<ErrorResponse> response = exceptionHandler.handleGlobalException(ex, webRequest);
+        ResponseEntity<ErrorResponse> response = exceptionHandler.handleGlobalException(ex);
 
         // Assert
         assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());

@@ -33,9 +33,9 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(AccountNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleAccountNotFoundException(
-            AccountNotFoundException ex, WebRequest request) {
+            AccountNotFoundException ex) {
         return new ResponseEntity<>(
-            buildErrorResponse(HttpStatus.NOT_FOUND, ex.getMessage(), request),
+            buildErrorResponse(HttpStatus.NOT_FOUND, ex.getMessage(), null),
             HttpStatus.NOT_FOUND);
     }
 
@@ -44,9 +44,9 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(InsufficientFundsException.class)
     public ResponseEntity<ErrorResponse> handleInsufficientFundsException(
-            InsufficientFundsException ex, WebRequest request) {
+            InsufficientFundsException ex) {
         return new ResponseEntity<>(
-            buildErrorResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), request),
+            buildErrorResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), null),
             HttpStatus.BAD_REQUEST);
     }
 
@@ -55,9 +55,9 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(CurrencyMismatchException.class)
     public ResponseEntity<ErrorResponse> handleCurrencyMismatchException(
-            CurrencyMismatchException ex, WebRequest request) {
+            CurrencyMismatchException ex) {
         return new ResponseEntity<>(
-            buildErrorResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), request),
+            buildErrorResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), null),
             HttpStatus.BAD_REQUEST);
     }
 
@@ -66,9 +66,9 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(InvalidTransactionException.class)
     public ResponseEntity<ErrorResponse> handleInvalidTransactionException(
-            InvalidTransactionException ex, WebRequest request) {
+            InvalidTransactionException ex) {
         return new ResponseEntity<>(
-            buildErrorResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), request),
+            buildErrorResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), null),
             HttpStatus.BAD_REQUEST);
     }
 
@@ -77,9 +77,9 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ErrorResponse> handleIllegalArgumentException(
-            IllegalArgumentException ex, WebRequest request) {
+            IllegalArgumentException ex) {
         return new ResponseEntity<>(
-            buildErrorResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), request),
+            buildErrorResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), null),
             HttpStatus.BAD_REQUEST);
     }
 
@@ -88,7 +88,7 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ValidationErrorResponse> handleValidationExceptions(
-            MethodArgumentNotValidException ex, WebRequest request) {
+            MethodArgumentNotValidException ex) {
         Map<String, String> errors = new HashMap<>();
         ex.getBindingResult().getAllErrors().forEach(error -> {
             String fieldName = ((FieldError) error).getField();
@@ -110,10 +110,10 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     public ResponseEntity<ErrorResponse> handleTypeMismatch(
-            MethodArgumentTypeMismatchException ex, WebRequest request) {
+            MethodArgumentTypeMismatchException ex) {
         String msg = "Parameter '" + ex.getName() + "' has invalid value: " + ex.getValue();
         return new ResponseEntity<>(
-            buildErrorResponse(HttpStatus.BAD_REQUEST, msg, request),
+            buildErrorResponse(HttpStatus.BAD_REQUEST, msg, null),
             HttpStatus.BAD_REQUEST);
     }
 
@@ -122,10 +122,10 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<ErrorResponse> handleHttpMessageNotReadable(
-            HttpMessageNotReadableException ex, WebRequest request) {
+            HttpMessageNotReadableException ex) {
         String msg = "Malformed JSON request: " + ex.getMessage();
         return new ResponseEntity<>(
-            buildErrorResponse(HttpStatus.BAD_REQUEST, msg, request),
+            buildErrorResponse(HttpStatus.BAD_REQUEST, msg, null),
             HttpStatus.BAD_REQUEST);
     }
 
@@ -134,10 +134,10 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGlobalException(
-            Exception ex, WebRequest request) {
+            Exception ex) {
         log.error("Unhandled exception", ex);
         return new ResponseEntity<>(
-            buildErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred", request),
+            buildErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred", null),
             HttpStatus.INTERNAL_SERVER_ERROR);
     }
 } 

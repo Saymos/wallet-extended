@@ -610,7 +610,7 @@ class TransactionServiceTest {
             () -> transactionService.transfer(fromAccountId, toAccountId, amount, null, null)
         );
         
-        assertEquals(expectedError, thrown);
+        assertEquals(expectedError, thrown.getCause());
         
         // Verify transaction management - not using mock TransactionTemplate
         verify(doubleEntryService).createTransferEntries(any());

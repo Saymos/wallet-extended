@@ -181,13 +181,16 @@ public class TransactionService {
             // Mark transaction as successful
             transaction.markSuccess();
             transactionRepository.save(transaction);
-        } catch (Exception e) {
+        } catch (AccountNotFoundException | InsufficientFundsException | CurrencyMismatchException e) {
             // Mark transaction as failed with reason
             transaction.markFailed(e.getMessage());
             transactionRepository.save(transaction);
-            
             // Re-throw the exception for higher-level handling
             throw e;
+        } catch (Exception e) {
+            transaction.markFailed(e.getMessage());
+            transactionRepository.save(transaction);
+            throw new RuntimeException(e);
         }
     }
     

@@ -4,6 +4,8 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,6 +31,8 @@ import com.cubeia.wallet.repository.LedgerEntryRepository;
  */
 @Service
 public class DoubleEntryService {
+
+    private static final Logger log = LoggerFactory.getLogger(DoubleEntryService.class);
 
     // ID for the system funding account - source of all system credits
     private static final UUID SYSTEM_FUNDING_ACCOUNT_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
@@ -71,21 +75,17 @@ public class DoubleEntryService {
                         // Save the account, ignoring concurrent creation errors
                         try {
                             return accountRepository.save(systemAccount);
-                        } catch (Exception e) {
-                            // Log warning but continue - another thread may have created it
-                            System.err.println("Note: System funding account may have been created by another thread: " + e.getMessage());
-                            // Return the account anyway as best effort
+                        } catch (RuntimeException | Error e) {
+                            log.warn("Note: System funding account may have been created by another thread: {}", e.getMessage());
                             return systemAccount;
                         }
-                    } catch (Exception ex) {
-                        // Log warning but continue
-                        System.err.println("Failed to create system funding account via reflection: " + ex.getMessage());
+                    } catch (NoSuchFieldException | IllegalAccessException ex) {
+                        log.warn("Failed to create system funding account via reflection: {}", ex.getMessage());
                         return systemAccount;
                     }
                 });
-        } catch (Exception e) {
-            // Log warning but continue - the application can still function
-            System.err.println("Failed to create system funding account: " + e.getMessage());
+        } catch (RuntimeException | Error e) {
+            log.warn("Failed to create system funding account: {}", e.getMessage());
         }
     }
     

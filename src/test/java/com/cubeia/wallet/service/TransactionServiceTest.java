@@ -46,7 +46,7 @@ import com.cubeia.wallet.repository.TransactionRepository;
 
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
-public class TransactionServiceTest {
+class TransactionServiceTest {
 
     @Mock
     private AccountRepository accountRepository;

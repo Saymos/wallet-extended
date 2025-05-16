@@ -41,7 +41,7 @@ import com.cubeia.wallet.service.TransactionService;
  * </p>
  */
 @SpringBootTest
-public class DoubleEntryIntegrityTest {
+class DoubleEntryIntegrityTest {
 
     @Autowired
     private AccountRepository accountRepository;

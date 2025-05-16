@@ -25,8 +25,7 @@ public class GlobalExceptionHandler {
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     private ErrorResponse buildErrorResponse(HttpStatus status, String message, WebRequest request) {
-        String path = request != null ? request.getDescription(false).replace("uri=", "") : null;
-        return new ErrorResponse(status.value(), message, LocalDateTime.now(), path);
+        return new ErrorResponse(status.value(), message, LocalDateTime.now(), null);
     }
 
     /**
@@ -96,7 +95,6 @@ public class GlobalExceptionHandler {
             String errorMessage = error.getDefaultMessage();
             errors.put(fieldName, errorMessage);
         });
-        String path = request != null ? request.getDescription(false).replace("uri=", "") : null;
         ValidationErrorResponse validationError = new ValidationErrorResponse(
             HttpStatus.BAD_REQUEST.value(),
             "Validation failed",

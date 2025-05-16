@@ -26,13 +26,13 @@ import com.cubeia.wallet.model.TransactionType;
 @SpringBootTest
 @ActiveProfiles("test")
 @Transactional
-public class ReferenceIntegrityTest {
+class ReferenceIntegrityTest {
 
     @Autowired
     private TransactionRepository transactionRepository;
     
     @Test
-    public void testReferenceUniqueness() {
+    void testReferenceUniqueness() {
         // Create two transactions with the same reference
         UUID fromId1 = UUID.randomUUID();
         UUID toId1 = UUID.randomUUID();
@@ -67,7 +67,7 @@ public class ReferenceIntegrityTest {
     }
     
     @Test
-    public void testCaseInsensitiveReferenceLookup() {
+    void testCaseInsensitiveReferenceLookup() {
         // Create a transaction with a mixed-case reference
         UUID fromId = UUID.randomUUID();
         UUID toId = UUID.randomUUID();

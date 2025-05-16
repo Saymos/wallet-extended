@@ -40,7 +40,7 @@ import jakarta.persistence.PersistenceContext;
  */
 @SpringBootTest
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
-public class PerformanceTest {
+class PerformanceTest {
 
     @Autowired
     private AccountService accountService;

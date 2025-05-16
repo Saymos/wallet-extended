@@ -22,7 +22,7 @@ import com.cubeia.wallet.repository.AccountRepository;
  * to verify exception handling.
  */
 @SpringBootTest(classes = WalletApplication.class)
-public class ExecuteTransactionTest {
+class ExecuteTransactionTest {
 
     @Autowired
     private TransactionService transactionService;
@@ -44,7 +44,7 @@ public class ExecuteTransactionTest {
     
     @Test
     @Transactional
-    public void testExecuteWithInsufficientFunds() throws Exception {
+    void testExecuteWithInsufficientFunds() throws Exception {
         // Save the accounts to get IDs
         Account fromAccount = new Account(Currency.EUR, AccountType.MainAccount.getInstance());
         accountRepository.save(fromAccount);

@@ -27,7 +27,7 @@ import com.cubeia.wallet.model.LedgerEntry;
  * </p>
  */
 @DataJpaTest
-public class LedgerEntryRepositoryTest {
+class LedgerEntryRepositoryTest {
 
     @Autowired
     private LedgerEntryRepository ledgerEntryRepository;
@@ -37,7 +37,7 @@ public class LedgerEntryRepositoryTest {
     private UUID transactionId2;
     
     @BeforeEach
-    public void setUp() {
+    void setUp() {
         // Clear repository before each test
         ledgerEntryRepository.deleteAll();
         
@@ -92,7 +92,7 @@ public class LedgerEntryRepositoryTest {
     }
     
     @Test
-    public void testFindByAccountIdOrderByTimestampDesc() {
+    void testFindByAccountIdOrderByTimestampDesc() {
         // Test with pagination
         PageRequest pageRequest = PageRequest.of(0, 10, Sort.by(Sort.Direction.DESC, "timestamp"));
         Page<LedgerEntry> entriesPage = ledgerEntryRepository.findByAccountIdOrderByTimestampDesc(accountId, pageRequest);
@@ -108,7 +108,7 @@ public class LedgerEntryRepositoryTest {
     }
     
     @Test
-    public void testFindByTransactionId() {
+    void testFindByTransactionId() {
         List<LedgerEntry> entries = ledgerEntryRepository.findByTransactionId(transactionId1);
         
         assertNotNull(entries);
@@ -122,7 +122,7 @@ public class LedgerEntryRepositoryTest {
     }
     
     @Test
-    public void testSumByAccountIdAndType() {
+    void testSumByAccountIdAndType() {
         BigDecimal creditSum = ledgerEntryRepository.sumByAccountIdAndType(accountId, EntryType.CREDIT);
         BigDecimal debitSum = ledgerEntryRepository.sumByAccountIdAndType(accountId, EntryType.DEBIT);
         
@@ -135,7 +135,7 @@ public class LedgerEntryRepositoryTest {
     }
     
     @Test
-    public void testCalculateBalance() {
+    void testCalculateBalance() {
         BigDecimal balance = ledgerEntryRepository.calculateBalance(accountId);
         
         assertEquals(new BigDecimal("70.00"), balance.setScale(2), 
@@ -147,7 +147,7 @@ public class LedgerEntryRepositoryTest {
     }
     
     @Test
-    public void testFindByAccountIdAndEntryTypeOrderByTimestampDesc() {
+    void testFindByAccountIdAndEntryTypeOrderByTimestampDesc() {
         PageRequest pageRequest = PageRequest.of(0, 10);
         
         Page<LedgerEntry> creditEntries = ledgerEntryRepository

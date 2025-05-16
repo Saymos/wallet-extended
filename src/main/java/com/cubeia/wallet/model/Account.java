@@ -35,7 +35,7 @@ public class Account {
     
     @Column(name = "account_type", nullable = false)
     @Convert(converter = AccountTypeConverter.class)
-    private AccountType accountType;
+    private final AccountType accountType;
     
     /**
      * Default no-args constructor required by JPA.

@@ -31,7 +31,7 @@ import com.cubeia.wallet.repository.TransactionRepository;
 import com.cubeia.wallet.service.ValidationService.TransferValidationResult;
 
 @ExtendWith(MockitoExtension.class)
-public class ValidationServiceTest {
+class ValidationServiceTest {
 
     @Mock
     private AccountRepository accountRepository;

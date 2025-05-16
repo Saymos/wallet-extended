@@ -16,7 +16,7 @@ import com.cubeia.wallet.service.DoubleEntryService;
  * These methods provide utilities for setting up test objects without 
  * relying on database persistence.
  */
-public class TestHelpers {
+class TestHelpers {
 
     /**
      * Helper method to set account ID using reflection (for testing)

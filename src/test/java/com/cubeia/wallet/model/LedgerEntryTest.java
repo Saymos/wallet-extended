@@ -18,7 +18,7 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
  * with JPA and maintains proper immutability and validation.
  */
 @DataJpaTest
-public class LedgerEntryTest {
+class LedgerEntryTest {
 
     @Autowired
     private TestEntityManager entityManager;

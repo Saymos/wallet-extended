@@ -30,14 +30,13 @@ import com.cubeia.wallet.model.TransactionType;
 import com.cubeia.wallet.repository.AccountRepository;
 import com.cubeia.wallet.repository.LedgerEntryRepository;
 import com.cubeia.wallet.repository.TransactionRepository;
-import com.cubeia.wallet.service.DoubleEntryService;
 
 /**
  * Tests for exception handling in the wallet API.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
-public class ExceptionHandlingTest {
+class ExceptionHandlingTest {
 
     @LocalServerPort
     private int port;
@@ -54,9 +53,6 @@ public class ExceptionHandlingTest {
     @Autowired
     private LedgerEntryRepository ledgerEntryRepository;
     
-    @Autowired
-    private DoubleEntryService doubleEntryService;
-
     /**
      * Helper method to set account balance by creating system credit ledger entries.
      */
@@ -119,7 +115,10 @@ public class ExceptionHandlingTest {
         assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
         
         // and - error response should contain proper message
-        Map<String, Object> responseBody = (Map<String, Object>) response.getBody();
+        Object body = response.getBody();
+        assertNotNull(body, "Response body should not be null");
+        assertTrue(body instanceof Map, "Response body should be a Map");
+        Map<String, Object> responseBody = (Map<String, Object>) body;
         assertTrue(responseBody.get("message").toString().contains("Account not found"));
     }
 
@@ -150,7 +149,10 @@ public class ExceptionHandlingTest {
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
         
         // and - error response should contain proper message
-        Map<String, Object> responseBody = (Map<String, Object>) response.getBody();
+        Object body = response.getBody();
+        assertNotNull(body, "Response body should not be null");
+        assertTrue(body instanceof Map, "Response body should be a Map");
+        Map<String, Object> responseBody = (Map<String, Object>) body;
         assertTrue(responseBody.get("message").toString().contains("Insufficient funds"));
     }
 
@@ -178,8 +180,10 @@ public class ExceptionHandlingTest {
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
         
         // and - error response should contain a message about validation failure
-        Map<String, Object> responseBody = (Map<String, Object>) response.getBody();
-        assertNotNull(responseBody);
+        Object body = response.getBody();
+        assertNotNull(body, "Response body should not be null");
+        assertTrue(body instanceof Map, "Response body should be a Map");
+        Map<String, Object> responseBody = (Map<String, Object>) body;
         String errorMessage = responseBody.get("message").toString().toLowerCase();
         assertTrue(errorMessage.contains("amount") || errorMessage.contains("greater than 0") || errorMessage.contains("positive"),
                 "Error should mention amount or positive value requirement: " + errorMessage);
@@ -212,7 +216,10 @@ public class ExceptionHandlingTest {
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
         
         // and - error response should contain proper message about currency mismatch
-        Map<String, Object> responseBody = (Map<String, Object>) response.getBody();
+        Object body = response.getBody();
+        assertNotNull(body, "Response body should not be null");
+        assertTrue(body instanceof Map, "Response body should be a Map");
+        Map<String, Object> responseBody = (Map<String, Object>) body;
         assertTrue(responseBody.get("message").toString().contains("different currencies"));
     }
 
@@ -236,8 +243,10 @@ public class ExceptionHandlingTest {
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
         
         // and - error response should mention the validation failure
-        Map<String, Object> responseBody = (Map<String, Object>) response.getBody();
-        assertNotNull(responseBody);
+        Object body = response.getBody();
+        assertNotNull(body, "Response body should not be null");
+        assertTrue(body instanceof Map, "Response body should be a Map");
+        Map<String, Object> responseBody = (Map<String, Object>) body;
         String errorMessage = responseBody.get("message").toString().toLowerCase();
         assertTrue(errorMessage.contains("amount") || errorMessage.contains("missing") || errorMessage.contains("required"),
                 "Error should mention amount or missing/required: " + errorMessage);

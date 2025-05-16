@@ -32,7 +32,7 @@ import com.cubeia.wallet.repository.TransactionRepository;
  */
 @SpringBootTest(classes = WalletApplication.class)
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
-public class TransactionServiceIntegrationTest {
+class TransactionServiceIntegrationTest {
     
     private static final Logger log = LoggerFactory.getLogger(TransactionServiceIntegrationTest.class);
     

@@ -2,10 +2,9 @@ package com.cubeia.wallet.model;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
-
 import org.junit.jupiter.api.Test;
 
-public class AccountTypeTest {
+class AccountTypeTest {
 
     @Test
     public void testMainAccountSingleton() {

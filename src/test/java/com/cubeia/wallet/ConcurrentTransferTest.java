@@ -25,7 +25,6 @@ import com.cubeia.wallet.model.Currency;
 import com.cubeia.wallet.model.EntryType;
 import com.cubeia.wallet.repository.AccountRepository;
 import com.cubeia.wallet.repository.LedgerEntryRepository;
-import com.cubeia.wallet.service.AccountService;
 import com.cubeia.wallet.service.DoubleEntryService;
 import com.cubeia.wallet.service.TransactionService;
 
@@ -41,9 +40,6 @@ import jakarta.persistence.PersistenceContext;
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 public class ConcurrentTransferTest {
 
-    @Autowired
-    private AccountService accountService;
-    
     @Autowired
     private TransactionService transactionService;
     
@@ -115,10 +111,6 @@ public class ConcurrentTransferTest {
      */
     @Test
     void testManyToOneTransfers() throws InterruptedException {
-        // Calculate expected final balances
-        BigDecimal expectedSourceBalance = new BigDecimal(INITIAL_BALANCE - TRANSFER_AMOUNT);
-        BigDecimal expectedDestinationBalance = new BigDecimal(NUMBER_OF_CONCURRENT_THREADS * TRANSFER_AMOUNT);
-        
         // Capture all IDs before starting threads to avoid effectively final issues
         final UUID destinationId = destinationAccount.getId();
         List<UUID> sourceAccountIds = sourceAccounts.stream()

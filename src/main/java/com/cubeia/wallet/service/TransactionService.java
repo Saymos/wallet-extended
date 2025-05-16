@@ -31,9 +31,6 @@ public class TransactionService {
     private final ValidationService validationService;
     private final DoubleEntryService doubleEntryService;
     private final TransactionTemplate transactionTemplate;
-    
-    // Store the most recent transaction ID to support integration tests
-    private UUID mostRecentTransactionId;
 
     /**
      * Creates a new TransactionService.
@@ -108,7 +105,6 @@ public class TransactionService {
                 
                 // Get validated accounts
                 Account fromAccount = validationResult.fromAccount();
-                Account toAccount = validationResult.toAccount();
                 
                 // Get currency from the validation result
                 Currency currency = fromAccount.getCurrency();
@@ -124,9 +120,6 @@ public class TransactionService {
                     description);
                 
                 transaction = transactionRepository.save(transaction);
-                
-                // Store the most recent transaction ID for integration tests
-                mostRecentTransactionId = transaction.getId();
                 
                 // Execute the transaction using double-entry bookkeeping
                 executeTransaction(transaction);

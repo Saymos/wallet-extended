@@ -37,7 +37,7 @@ import com.cubeia.wallet.service.ValidationService;
  * These tests ensure that transactions with the same reference ID are only executed once,
  * which is critical for financial systems to prevent duplicate transactions.
  */
-public class TransactionIdempotencyTest {
+class TransactionIdempotencyTest {
 
     @Mock
     private AccountRepository accountRepository;

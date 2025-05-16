@@ -12,7 +12,6 @@ import com.cubeia.wallet.model.Account;
 import com.cubeia.wallet.model.AccountType;
 import com.cubeia.wallet.model.Currency;
 import com.cubeia.wallet.repository.AccountRepository;
-import com.cubeia.wallet.repository.TransactionRepository;
 
 /**
  * Service for managing accounts.
@@ -21,13 +20,10 @@ import com.cubeia.wallet.repository.TransactionRepository;
 public class AccountService {
 
     private final AccountRepository accountRepository;
-    private final TransactionRepository transactionRepository;
     private final DoubleEntryService doubleEntryService;
 
-    public AccountService(AccountRepository accountRepository, TransactionRepository transactionRepository, 
-                         DoubleEntryService doubleEntryService) {
+    public AccountService(AccountRepository accountRepository, DoubleEntryService doubleEntryService) {
         this.accountRepository = accountRepository;
-        this.transactionRepository = transactionRepository;
         this.doubleEntryService = doubleEntryService;
     }
 

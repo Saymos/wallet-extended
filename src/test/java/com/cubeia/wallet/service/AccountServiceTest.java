@@ -27,7 +27,7 @@ import com.cubeia.wallet.model.Currency;
 import com.cubeia.wallet.repository.AccountRepository;
 
 @ExtendWith(MockitoExtension.class)
-public class AccountServiceTest {
+class AccountServiceTest {
 
     @Mock
     private AccountRepository accountRepository;

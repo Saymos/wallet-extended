@@ -23,7 +23,7 @@ import com.cubeia.wallet.repository.AccountRepository;
  * to trigger the exception handling code.
  */
 @SpringBootTest(classes = WalletApplication.class)
-public class TransactionDirectTest {
+class TransactionDirectTest {
 
     @Autowired
     private TransactionService transactionService;
@@ -33,7 +33,7 @@ public class TransactionDirectTest {
     
     @Test
     @Transactional
-    public void testInsufficientFundsExceptionHandling() {
+    void testInsufficientFundsExceptionHandling() {
         // Create account with minimum balance and save to DB
         Account fromAccount = new Account(Currency.EUR, AccountType.MainAccount.getInstance());
         accountRepository.save(fromAccount);
@@ -57,7 +57,7 @@ public class TransactionDirectTest {
     
     @Test
     @Transactional
-    public void testCurrencyMismatchException() {
+    void testCurrencyMismatchException() {
         // Create accounts with different currencies
         Account fromAccount = new Account(Currency.EUR, AccountType.MainAccount.getInstance());
         accountRepository.save(fromAccount);

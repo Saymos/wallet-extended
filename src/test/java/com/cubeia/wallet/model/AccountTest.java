@@ -27,7 +27,7 @@ import com.cubeia.wallet.service.DoubleEntryService;
 @DataJpaTest
 @ActiveProfiles("test")
 @Import(DoubleEntryService.class)
-public class AccountTest {
+class AccountTest {
 
     @Autowired
     private TestEntityManager entityManager;

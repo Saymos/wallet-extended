@@ -28,7 +28,7 @@ import com.cubeia.wallet.repository.LedgerEntryRepository;
  * Unit tests for the DoubleEntryService to verify the core double-entry bookkeeping functionality.
  */
 @ExtendWith(MockitoExtension.class)
-public class DoubleEntryServiceTest {
+class DoubleEntryServiceTest {
 
     @Mock
     private LedgerEntryRepository ledgerEntryRepository;
@@ -39,7 +39,7 @@ public class DoubleEntryServiceTest {
     private DoubleEntryService doubleEntryService;
     
     @BeforeEach
-    public void setUp() {
+    void setUp() {
         doubleEntryService = new DoubleEntryService(ledgerEntryRepository, accountRepository);
     }
     

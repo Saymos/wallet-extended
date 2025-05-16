@@ -35,7 +35,7 @@ import com.cubeia.wallet.repository.LedgerEntryRepository;
 import com.cubeia.wallet.repository.TransactionRepository;
 
 @ExtendWith(MockitoExtension.class)
-public class ReportingServiceTest {
+class ReportingServiceTest {
 
     @Mock
     private AccountRepository accountRepository;

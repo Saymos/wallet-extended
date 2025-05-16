@@ -13,6 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
@@ -106,9 +107,11 @@ class ExceptionHandlingTest {
     public void getBalance_NonExistentAccount_Returns404() {
         // when - requesting balance of a non-existent account
         UUID nonExistentId = UUID.randomUUID();
-        ResponseEntity<Object> response = restTemplate.getForEntity(
+        ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
                 getBaseUrl() + "/accounts/{id}/balance",
-                Object.class,
+                HttpMethod.GET,
+                null,
+                new ParameterizedTypeReference<Map<String, Object>>() {},
                 nonExistentId);
 
         // then - should get a 404 Not Found response
@@ -118,8 +121,11 @@ class ExceptionHandlingTest {
         Object body = response.getBody();
         assertNotNull(body, "Response body should not be null");
         assertTrue(body instanceof Map, "Response body should be a Map");
+        
         Map<String, Object> responseBody = (Map<String, Object>) body;
-        assertTrue(responseBody.get("message").toString().contains("Account not found"));
+        Object message = responseBody.get("message");
+        assertNotNull(message, "Message should not be null");
+        assertTrue(message.toString().contains("Account not found"));
     }
 
     @Test
@@ -140,10 +146,11 @@ class ExceptionHandlingTest {
                 null);
         
         // when - attempting the transfer
-        ResponseEntity<Object> response = restTemplate.postForEntity(
+        ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
                 getBaseUrl() + "/transfers",
-                transferRequest,
-                Object.class);
+                HttpMethod.POST,
+                new HttpEntity<>(transferRequest),
+                new ParameterizedTypeReference<Map<String, Object>>() {});
         
         // then - should get a 400 Bad Request response
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
@@ -152,8 +159,11 @@ class ExceptionHandlingTest {
         Object body = response.getBody();
         assertNotNull(body, "Response body should not be null");
         assertTrue(body instanceof Map, "Response body should be a Map");
+        
         Map<String, Object> responseBody = (Map<String, Object>) body;
-        assertTrue(responseBody.get("message").toString().contains("Insufficient funds"));
+        Object message = responseBody.get("message");
+        assertNotNull(message, "Message should not be null");
+        assertTrue(message.toString().contains("Insufficient funds"));
     }
 
     @Test
@@ -171,10 +181,11 @@ class ExceptionHandlingTest {
                 null);
         
         // when - attempting the transfer
-        ResponseEntity<Object> response = restTemplate.postForEntity(
+        ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
                 getBaseUrl() + "/transfers",
-                transferRequest,
-                Object.class);
+                HttpMethod.POST,
+                new HttpEntity<>(transferRequest),
+                new ParameterizedTypeReference<Map<String, Object>>() {});
         
         // then - should get a 400 Bad Request response
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
@@ -183,8 +194,11 @@ class ExceptionHandlingTest {
         Object body = response.getBody();
         assertNotNull(body, "Response body should not be null");
         assertTrue(body instanceof Map, "Response body should be a Map");
+        
         Map<String, Object> responseBody = (Map<String, Object>) body;
-        String errorMessage = responseBody.get("message").toString().toLowerCase();
+        Object message = responseBody.get("message");
+        assertNotNull(message, "Message should not be null");
+        String errorMessage = message.toString().toLowerCase();
         assertTrue(errorMessage.contains("amount") || errorMessage.contains("greater than 0") || errorMessage.contains("positive"),
                 "Error should mention amount or positive value requirement: " + errorMessage);
     }
@@ -207,10 +221,11 @@ class ExceptionHandlingTest {
                 null);
         
         // when - attempting the transfer
-        ResponseEntity<Object> response = restTemplate.postForEntity(
+        ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
                 getBaseUrl() + "/transfers",
-                transferRequest,
-                Object.class);
+                HttpMethod.POST,
+                new HttpEntity<>(transferRequest),
+                new ParameterizedTypeReference<Map<String, Object>>() {});
         
         // then - should get a 400 Bad Request response
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
@@ -219,8 +234,11 @@ class ExceptionHandlingTest {
         Object body = response.getBody();
         assertNotNull(body, "Response body should not be null");
         assertTrue(body instanceof Map, "Response body should be a Map");
+        
         Map<String, Object> responseBody = (Map<String, Object>) body;
-        assertTrue(responseBody.get("message").toString().contains("different currencies"));
+        Object message = responseBody.get("message");
+        assertNotNull(message, "Message should not be null");
+        assertTrue(message.toString().contains("different currencies"));
     }
 
     @Test
@@ -233,11 +251,11 @@ class ExceptionHandlingTest {
         
         // when - attempting the transfer
         HttpEntity<Map<String, Object>> requestEntity = new HttpEntity<>(invalidRequest);
-        ResponseEntity<Object> response = restTemplate.exchange(
+        ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
                 getBaseUrl() + "/transfers",
                 HttpMethod.POST,
                 requestEntity,
-                Object.class);
+                new ParameterizedTypeReference<Map<String, Object>>() {});
         
         // then - should get a 400 Bad Request response
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
@@ -246,8 +264,11 @@ class ExceptionHandlingTest {
         Object body = response.getBody();
         assertNotNull(body, "Response body should not be null");
         assertTrue(body instanceof Map, "Response body should be a Map");
+        
         Map<String, Object> responseBody = (Map<String, Object>) body;
-        String errorMessage = responseBody.get("message").toString().toLowerCase();
+        Object message = responseBody.get("message");
+        assertNotNull(message, "Message should not be null");
+        String errorMessage = message.toString().toLowerCase();
         assertTrue(errorMessage.contains("amount") || errorMessage.contains("missing") || errorMessage.contains("required"),
                 "Error should mention amount or missing/required: " + errorMessage);
     }

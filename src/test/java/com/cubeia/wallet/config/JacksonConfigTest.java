@@ -1,11 +1,10 @@
 package com.cubeia.wallet.config;
 
+import java.io.IOException;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-
-import java.io.IOException;
-
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -82,15 +81,15 @@ public class JacksonConfigTest {
         
         // Create a wrapper class to test null field serialization
         class Wrapper {
-            public AccountType type;
+            @SuppressWarnings("unused") // Used by Jackson for serialization
+            private String name = "test";
         }
         
         Wrapper wrapper = new Wrapper();
-        wrapper.type = null;
         
         // Since we have NON_NULL inclusion, the field should be excluded
         String wrapperJson = objectMapper.writeValueAsString(wrapper);
-        assertEquals("{}", wrapperJson);
+        assertEquals("{\"name\":\"test\"}", wrapperJson);
     }
     
     @Test

@@ -13,6 +13,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.annotation.DirtiesContext;
@@ -76,15 +79,19 @@ public class ValidationIntegrationTest {
                 null);
 
         // when
-        ResponseEntity<Map> response = restTemplate.postForEntity(
+        ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
                 getBaseUrl() + "/transfers",
-                transferRequest,
-                Map.class);
+                HttpMethod.POST,
+                new HttpEntity<>(transferRequest),
+                new ParameterizedTypeReference<Map<String, Object>>() {}
+        );
 
         // then
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
         assertNotNull(response.getBody());
-        assertTrue(response.getBody().get("message").toString().contains("Insufficient funds"));
+        Object message = response.getBody().get("message");
+        assertNotNull(message, "Message should not be null");
+        assertTrue(message.toString().contains("Insufficient funds"));
     }
 
     @Test
@@ -108,15 +115,19 @@ public class ValidationIntegrationTest {
                 null);
 
         // when
-        ResponseEntity<Map> response = restTemplate.postForEntity(
+        ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
                 getBaseUrl() + "/transfers",
-                transferRequest,
-                Map.class);
+                HttpMethod.POST,
+                new HttpEntity<>(transferRequest),
+                new ParameterizedTypeReference<Map<String, Object>>() {}
+        );
 
         // then
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
         assertNotNull(response.getBody());
-        String errorMessage = response.getBody().get("message").toString();
+        Object message = response.getBody().get("message");
+        assertNotNull(message, "Message should not be null");
+        String errorMessage = message.toString();
         assertTrue(errorMessage.toLowerCase().contains("currency mismatch") 
                 || errorMessage.toLowerCase().contains("different currencies"),
                 "Error message should include currency mismatch: " + errorMessage);
@@ -146,7 +157,12 @@ public class ValidationIntegrationTest {
                 referenceId,
                 null);
         
-        restTemplate.postForEntity(getBaseUrl() + "/transfers", transferRequest1, Map.class);
+        restTemplate.exchange(
+                getBaseUrl() + "/transfers", 
+                HttpMethod.POST,
+                new HttpEntity<>(transferRequest1),
+                new ParameterizedTypeReference<Map<String, Object>>() {}
+        );
         
         // Second transfer with same reference but different parameters
         TransferRequestDto transferRequest2 = new TransferRequestDto(
@@ -157,15 +173,19 @@ public class ValidationIntegrationTest {
                 null);
 
         // when
-        ResponseEntity<Map> response = restTemplate.postForEntity(
+        ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
                 getBaseUrl() + "/transfers",
-                transferRequest2,
-                Map.class);
+                HttpMethod.POST,
+                new HttpEntity<>(transferRequest2),
+                new ParameterizedTypeReference<Map<String, Object>>() {}
+        );
 
         // then
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
         assertNotNull(response.getBody());
-        assertTrue(response.getBody().get("message").toString().contains("already exists with different parameters"));
+        Object message = response.getBody().get("message");
+        assertNotNull(message, "Message should not be null");
+        assertTrue(message.toString().contains("already exists with different parameters"));
     }
     
     @Test
@@ -182,15 +202,19 @@ public class ValidationIntegrationTest {
                 null);
 
         // when
-        ResponseEntity<Map> response = restTemplate.postForEntity(
+        ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
                 getBaseUrl() + "/transfers",
-                transferRequest,
-                Map.class);
+                HttpMethod.POST,
+                new HttpEntity<>(transferRequest),
+                new ParameterizedTypeReference<Map<String, Object>>() {}
+        );
 
         // then
         assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
         assertNotNull(response.getBody());
-        assertTrue(response.getBody().get("message").toString().contains("Account not found"));
+        Object message = response.getBody().get("message");
+        assertNotNull(message, "Message should not be null");
+        assertTrue(message.toString().contains("Account not found"));
     }
     
     @Test

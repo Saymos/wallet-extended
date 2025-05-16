@@ -19,6 +19,10 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.cubeia.wallet.exception.AccountNotFoundException;
+import com.cubeia.wallet.exception.CurrencyMismatchException;
+import com.cubeia.wallet.exception.InsufficientFundsException;
+import com.cubeia.wallet.exception.InvalidTransactionException;
 import com.cubeia.wallet.model.Account;
 import com.cubeia.wallet.model.AccountType;
 import com.cubeia.wallet.model.Currency;
@@ -27,9 +31,6 @@ import com.cubeia.wallet.repository.AccountRepository;
 import com.cubeia.wallet.repository.LedgerEntryRepository;
 import com.cubeia.wallet.service.DoubleEntryService;
 import com.cubeia.wallet.service.TransactionService;
-
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.PersistenceContext;
 
 /**
  * Tests to verify the thread safety and concurrency behavior of the wallet
@@ -52,9 +53,6 @@ public class ConcurrentTransferTest {
     @Autowired
     private DoubleEntryService doubleEntryService;
     
-    @PersistenceContext
-    private EntityManager entityManager;
-    
     private static final int NUMBER_OF_CONCURRENT_THREADS = 10;
     private static final int TRANSFER_AMOUNT = 10;
     private static final int INITIAL_BALANCE = 1000;
@@ -70,6 +68,7 @@ public class ConcurrentTransferTest {
      */
     @BeforeEach
     @Transactional
+    @SuppressWarnings("unused") // Called implicitly by JUnit, not explicitly in tests
     void setUp() {
         // Create system account for testing
         systemAccount = new Account(Currency.EUR, AccountType.SystemAccount.getInstance());
@@ -150,7 +149,7 @@ public class ConcurrentTransferTest {
                             new BigDecimal(TRANSFER_AMOUNT),
                             referenceId
                     );
-                } catch (Exception e) {
+                } catch (InterruptedException | AccountNotFoundException | InsufficientFundsException | CurrencyMismatchException | InvalidTransactionException e) {
                     System.err.println("Transfer failed: " + e.getMessage());
                     failedTransfers.incrementAndGet();
                 } finally {
@@ -247,7 +246,7 @@ public class ConcurrentTransferTest {
                 try {
                     startLatch.await();
                     
-                    String referenceId = "OTM-" + destinationId + "-" + UUID.randomUUID();
+                    String referenceId = "OTM-" + sourceAccountId + "-" + destinationId + "-" + UUID.randomUUID();
                     
                     transactionService.transfer(
                             sourceAccountId,
@@ -257,7 +256,7 @@ public class ConcurrentTransferTest {
                     );
                     
                     successfulTransfers.incrementAndGet();
-                } catch (Exception e) {
+                } catch (InterruptedException | AccountNotFoundException | InsufficientFundsException | CurrencyMismatchException | InvalidTransactionException e) {
                     System.err.println("Transfer failed: " + e.getMessage());
                     failedTransfers.incrementAndGet();
                 } finally {
@@ -384,7 +383,7 @@ public class ConcurrentTransferTest {
                             new BigDecimal(TRANSFER_AMOUNT),
                             referenceId
                     );
-                } catch (Exception e) {
+                } catch (InterruptedException | AccountNotFoundException | InsufficientFundsException | CurrencyMismatchException | InvalidTransactionException e) {
                     System.err.println("Transfer failed: " + e.getMessage());
                     failedTransfers.incrementAndGet();
                 } finally {

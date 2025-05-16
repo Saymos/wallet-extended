@@ -145,10 +145,9 @@ public class ValidationService {
             UUID fromAccountId, UUID toAccountId, BigDecimal amount, String referenceId) {
         
         // Step 1: Validate idempotency first (if reference ID is provided)
-        Transaction existingTransaction = null;
         if (referenceId != null && !referenceId.isEmpty()) {
             // Use case-insensitive lookup to improve compatibility with external systems
-            existingTransaction = transactionRepository.findByReferenceIgnoreCase(referenceId).orElse(null);
+            Transaction existingTransaction = transactionRepository.findByReferenceIgnoreCase(referenceId).orElse(null);
             
             if (existingTransaction != null) {
                 // If there's an existing transaction, validate it matches the current parameters

@@ -13,7 +13,6 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
-import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 /**
@@ -24,7 +23,7 @@ public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
-    private ErrorResponse buildErrorResponse(HttpStatus status, String message, WebRequest request) {
+    private ErrorResponse buildErrorResponse(HttpStatus status, String message) {
         return new ErrorResponse(status.value(), message, LocalDateTime.now(), null);
     }
 
@@ -35,7 +34,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleAccountNotFoundException(
             AccountNotFoundException ex) {
         return new ResponseEntity<>(
-            buildErrorResponse(HttpStatus.NOT_FOUND, ex.getMessage(), null),
+            buildErrorResponse(HttpStatus.NOT_FOUND, ex.getMessage()),
             HttpStatus.NOT_FOUND);
     }
 
@@ -46,7 +45,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleInsufficientFundsException(
             InsufficientFundsException ex) {
         return new ResponseEntity<>(
-            buildErrorResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), null),
+            buildErrorResponse(HttpStatus.BAD_REQUEST, ex.getMessage()),
             HttpStatus.BAD_REQUEST);
     }
 
@@ -57,7 +56,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleCurrencyMismatchException(
             CurrencyMismatchException ex) {
         return new ResponseEntity<>(
-            buildErrorResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), null),
+            buildErrorResponse(HttpStatus.BAD_REQUEST, ex.getMessage()),
             HttpStatus.BAD_REQUEST);
     }
 
@@ -68,7 +67,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleInvalidTransactionException(
             InvalidTransactionException ex) {
         return new ResponseEntity<>(
-            buildErrorResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), null),
+            buildErrorResponse(HttpStatus.BAD_REQUEST, ex.getMessage()),
             HttpStatus.BAD_REQUEST);
     }
 
@@ -79,7 +78,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleIllegalArgumentException(
             IllegalArgumentException ex) {
         return new ResponseEntity<>(
-            buildErrorResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), null),
+            buildErrorResponse(HttpStatus.BAD_REQUEST, ex.getMessage()),
             HttpStatus.BAD_REQUEST);
     }
 
@@ -113,7 +112,7 @@ public class GlobalExceptionHandler {
             MethodArgumentTypeMismatchException ex) {
         String msg = "Parameter '" + ex.getName() + "' has invalid value: " + ex.getValue();
         return new ResponseEntity<>(
-            buildErrorResponse(HttpStatus.BAD_REQUEST, msg, null),
+            buildErrorResponse(HttpStatus.BAD_REQUEST, msg),
             HttpStatus.BAD_REQUEST);
     }
 
@@ -125,7 +124,7 @@ public class GlobalExceptionHandler {
             HttpMessageNotReadableException ex) {
         String msg = "Malformed JSON request: " + ex.getMessage();
         return new ResponseEntity<>(
-            buildErrorResponse(HttpStatus.BAD_REQUEST, msg, null),
+            buildErrorResponse(HttpStatus.BAD_REQUEST, msg),
             HttpStatus.BAD_REQUEST);
     }
 
@@ -137,7 +136,7 @@ public class GlobalExceptionHandler {
             Exception ex) {
         log.error("Unhandled exception", ex);
         return new ResponseEntity<>(
-            buildErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred", null),
+            buildErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred"),
             HttpStatus.INTERNAL_SERVER_ERROR);
     }
 } 

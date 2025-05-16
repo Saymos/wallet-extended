@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
+import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
@@ -12,6 +13,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import com.cubeia.wallet.exception.AccountNotFoundException;
 import com.cubeia.wallet.exception.CurrencyMismatchException;
 import com.cubeia.wallet.exception.InsufficientFundsException;
+import com.cubeia.wallet.exception.InvalidTransactionException;
 import com.cubeia.wallet.model.Account;
 import com.cubeia.wallet.model.Currency;
 import com.cubeia.wallet.model.Transaction;
@@ -125,7 +127,14 @@ public class TransactionService {
                 executeTransaction(transaction);
                 
                 return transaction;
-            } catch (Exception e) {
+            } catch (AccountNotFoundException | InsufficientFundsException | CurrencyMismatchException | InvalidTransactionException e) {
+                // Rollback by throwing the exception
+                // Spring's TransactionTemplate will handle rollback
+                if (status != null) {
+                    status.setRollbackOnly();
+                }
+                throw e;
+            } catch (RuntimeException e) {
                 // Rollback by throwing the exception
                 // Spring's TransactionTemplate will handle rollback
                 if (status != null) {
@@ -187,10 +196,16 @@ public class TransactionService {
             transactionRepository.save(transaction);
             // Re-throw the exception for higher-level handling
             throw e;
-        } catch (Exception e) {
+        } catch (IllegalArgumentException | IllegalStateException | DataAccessException e) {
+            // Handle other common exceptions that might occur during transaction processing
             transaction.markFailed(e.getMessage());
             transactionRepository.save(transaction);
             throw new RuntimeException(e);
+        } catch (RuntimeException e) {
+            // Catch any remaining runtime exceptions
+            transaction.markFailed(e.getMessage());
+            transactionRepository.save(transaction);
+            throw e;
         }
     }
     

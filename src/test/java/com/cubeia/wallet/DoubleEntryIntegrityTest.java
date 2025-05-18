@@ -269,8 +269,8 @@ class DoubleEntryIntegrityTest {
                             System.err.println("Transfer failed: " + e.getMessage());
                         }
                     }
-                } catch (Exception e) {
-                    e.printStackTrace();
+                } catch (InterruptedException e) {
+                    System.err.println("Thread interrupted: " + e.getMessage());
                 } finally {
                     completionLatch.countDown();
                 }
@@ -355,7 +355,7 @@ class DoubleEntryIntegrityTest {
         
         // Wait for all transfers to complete
         try {
-            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+            CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new)).join();
         } catch (Exception e) {
             System.err.println("Some transfers failed: " + e.getMessage());
         }
@@ -367,7 +367,6 @@ class DoubleEntryIntegrityTest {
         BigDecimal finalDestBalance = doubleEntryService.calculateBalance(destAccount.getId());
         
         BigDecimal expectedSourceBalance = new BigDecimal("9000.00"); // 10000 - (10 * 100)
-        BigDecimal expectedDestBalance = new BigDecimal("1000.00");   // 0 + (10 * 100)
         
         // Allow for some transfers to fail, but total balance should be the same
         assertTrue(

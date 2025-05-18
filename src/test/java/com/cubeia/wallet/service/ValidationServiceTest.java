@@ -60,7 +60,7 @@ class ValidationServiceTest {
             Field idField = Account.class.getDeclaredField("id");
             idField.setAccessible(true);
             idField.set(account, id);
-        } catch (Exception e) {
+        } catch (NoSuchFieldException | IllegalAccessException e) {
             throw new RuntimeException("Failed to set ID", e);
         }
     }
@@ -106,9 +106,10 @@ class ValidationServiceTest {
         lenient().when(accountRepository.findById(fromAccountId)).thenReturn(Optional.empty());
         
         // Act & Assert
-        assertThrows(AccountNotFoundException.class, () -> {
+        AccountNotFoundException exception = assertThrows(AccountNotFoundException.class, () -> {
             validationService.validateTransferParameters(fromAccountId, toAccountId, amount, referenceId);
         });
+        assertNotNull(exception.getMessage());
     }
     
     @Test
@@ -118,9 +119,10 @@ class ValidationServiceTest {
         lenient().when(accountRepository.findById(toAccountId)).thenReturn(Optional.empty());
         
         // Act & Assert
-        assertThrows(AccountNotFoundException.class, () -> {
+        AccountNotFoundException exception = assertThrows(AccountNotFoundException.class, () -> {
             validationService.validateTransferParameters(fromAccountId, toAccountId, amount, referenceId);
         });
+        assertNotNull(exception.getMessage());
     }
     
     @Test
@@ -133,9 +135,10 @@ class ValidationServiceTest {
         lenient().when(accountRepository.findById(toAccountId)).thenReturn(Optional.of(usdAccount));
         
         // Act & Assert
-        assertThrows(CurrencyMismatchException.class, () -> {
+        CurrencyMismatchException exception = assertThrows(CurrencyMismatchException.class, () -> {
             validationService.validateTransferParameters(fromAccountId, toAccountId, amount, referenceId);
         });
+        assertNotNull(exception.getMessage());
     }
     
     @Test
@@ -153,9 +156,10 @@ class ValidationServiceTest {
         lenient().when(transactionRepository.findByReferenceIgnoreCase(referenceId)).thenReturn(Optional.of(existingTransaction));
         
         // Act & Assert
-        assertThrows(InvalidTransactionException.class, () -> {
+        InvalidTransactionException exception = assertThrows(InvalidTransactionException.class, () -> {
             validationService.validateTransferParameters(fromAccountId, toAccountId, amount, referenceId);
         });
+        assertNotNull(exception.getMessage());
     }
     
     @Test
@@ -191,9 +195,10 @@ class ValidationServiceTest {
         BigDecimal largeAmount = new BigDecimal("1000.00");
         
         // Act & Assert
-        assertThrows(InsufficientFundsException.class, () -> {
+        InsufficientFundsException exception = assertThrows(InsufficientFundsException.class, () -> {
             validationService.validateSufficientFunds(fromAccount, largeAmount);
         });
+        assertNotNull(exception.getMessage());
     }
     
     @Test
@@ -246,9 +251,10 @@ class ValidationServiceTest {
         );
         
         // Act & Assert
-        assertThrows(InvalidTransactionException.class, () -> {
+        InvalidTransactionException exception = assertThrows(InvalidTransactionException.class, () -> {
             validationService.validateExistingTransactionMatch(existingTransaction, fromAccountId, toAccountId, amount);
         });
+        assertNotNull(exception.getMessage());
     }
     
     @Test
@@ -265,9 +271,10 @@ class ValidationServiceTest {
         );
         
         // Act & Assert
-        assertThrows(InvalidTransactionException.class, () -> {
+        InvalidTransactionException exception = assertThrows(InvalidTransactionException.class, () -> {
             validationService.validateExistingTransactionMatch(existingTransaction, fromAccountId, toAccountId, amount);
         });
+        assertNotNull(exception.getMessage());
     }
     
     @Test
@@ -284,8 +291,9 @@ class ValidationServiceTest {
         );
         
         // Act & Assert
-        assertThrows(InvalidTransactionException.class, () -> {
+        InvalidTransactionException exception = assertThrows(InvalidTransactionException.class, () -> {
             validationService.validateExistingTransactionMatch(existingTransaction, fromAccountId, toAccountId, amount);
         });
+        assertNotNull(exception.getMessage());
     }
 } 

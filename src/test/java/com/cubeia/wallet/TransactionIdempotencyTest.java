@@ -101,6 +101,7 @@ class TransactionIdempotencyTest {
         ) {
             // Override the transaction template method if it exists in the implementation
             // Otherwise, this is a test-specific extension
+            @Override
             protected TransactionTemplate getTransactionTemplate() {
                 return transactionTemplate;
             }

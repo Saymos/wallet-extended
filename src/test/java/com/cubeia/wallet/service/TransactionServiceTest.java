@@ -75,6 +75,7 @@ class TransactionServiceTest {
     private TransactionService transactionService;
 
     @BeforeEach
+    @SuppressWarnings("unused") // Called implicitly by JUnit
     void setUp() {
         // Configure transaction template behavior
         configureTransactionTemplate();
@@ -164,7 +165,7 @@ class TransactionServiceTest {
             Field idField = Account.class.getDeclaredField("id");
             idField.setAccessible(true);
             idField.set(account, id);
-        } catch (Exception e) {
+        } catch (IllegalAccessException | IllegalArgumentException | NoSuchFieldException | SecurityException e) {
             throw new RuntimeException("Failed to set ID", e);
         }
     }
@@ -177,7 +178,7 @@ class TransactionServiceTest {
             Field idField = Transaction.class.getDeclaredField("id");
             idField.setAccessible(true);
             idField.set(transaction, id);
-        } catch (Exception e) {
+        } catch (IllegalAccessException | IllegalArgumentException | NoSuchFieldException | SecurityException e) {
             throw new RuntimeException("Failed to set transaction ID", e);
         }
     }
@@ -234,7 +235,7 @@ class TransactionServiceTest {
                     Field idField = Transaction.class.getDeclaredField("id");
                     idField.setAccessible(true);
                     idField.set(savedTransaction, UUID.randomUUID());
-                } catch (Exception e) {
+                } catch (IllegalAccessException | IllegalArgumentException | NoSuchFieldException | SecurityException e) {
                     throw new RuntimeException("Failed to set transaction ID", e);
                 }
             }
@@ -429,7 +430,7 @@ class TransactionServiceTest {
                     Field idField = Transaction.class.getDeclaredField("id");
                     idField.setAccessible(true);
                     idField.set(savedTransaction, UUID.randomUUID());
-                } catch (Exception e) {
+                } catch (IllegalAccessException | IllegalArgumentException | NoSuchFieldException | SecurityException e) {
                     throw new RuntimeException("Failed to set transaction ID", e);
                 }
             }
@@ -675,25 +676,6 @@ class TransactionServiceTest {
             "Transaction should use SERIALIZABLE isolation level"
         );
     }
-    
-    /**
-     * Helper method to create a TransactionService with proper mocked dependencies
-     * for testing TransactionTemplate-specific behavior.
-     */
-    private TransactionService createServiceWithMockedTemplate() {
-        return new TransactionService(
-                accountRepository, 
-                transactionRepository, 
-                validationService, 
-                doubleEntryService,
-                transactionManager) {
-            
-            @Override
-            protected TransactionTemplate getTransactionTemplate() {
-                return transactionTemplate;
-            }
-        };
-    }
 
     @Test
     void transfer_ShouldReturnExistingTransactionForIdempotency() {
@@ -722,7 +704,7 @@ class TransactionServiceTest {
             Field idField = Transaction.class.getDeclaredField("id");
             idField.setAccessible(true);
             idField.set(existingTransaction, existingTransactionId);
-        } catch (Exception e) {
+        } catch (IllegalAccessException | IllegalArgumentException | NoSuchFieldException | SecurityException e) {
             throw new RuntimeException("Failed to set transaction ID", e);
         }
         

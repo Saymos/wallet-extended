@@ -29,7 +29,7 @@ class TestHelpers {
             Field idField = Account.class.getDeclaredField("id");
             idField.setAccessible(true);
             idField.set(account, id);
-        } catch (Exception e) {
+        } catch (IllegalAccessException | IllegalArgumentException | NoSuchFieldException | SecurityException e) {
             throw new RuntimeException("Failed to set ID", e);
         }
     }

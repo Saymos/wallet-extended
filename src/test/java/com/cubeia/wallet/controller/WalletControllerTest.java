@@ -10,13 +10,18 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.annotation.DirtiesContext;
@@ -76,8 +81,10 @@ public class WalletControllerTest {
         // then
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         assertThat(response.getBody()).isNotNull();
-        assertThat(response.getBody().getId()).isNotNull();
-        BigDecimal balance = getAccountBalance(response.getBody().getId());
+        Account account = response.getBody();
+        assertNotNull(account, "Account should not be null");
+        assertThat(account.getId()).isNotNull();
+        BigDecimal balance = getAccountBalance(account.getId());
         assertThat(balance).isEqualByComparingTo(BigDecimal.ZERO);
     }
 
@@ -87,15 +94,21 @@ public class WalletControllerTest {
         Account account = createAccountWithBalance(new BigDecimal("123.45"));
 
         // when
-        ResponseEntity<Map> response = restTemplate.getForEntity(
+        ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
                 getBaseUrl() + "/accounts/{id}/balance",
-                Map.class,
+                HttpMethod.GET,
+                null,
+                new ParameterizedTypeReference<Map<String, Object>>() {},
                 account.getId());
 
         // then
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody()).isNotNull();
-        assertThat(new BigDecimal(response.getBody().get("balance").toString()))
+        Map<String, Object> responseBody = response.getBody();
+        assertNotNull(responseBody, "Response body should not be null");
+        Object balanceObj = responseBody.get("balance");
+        assertNotNull(balanceObj, "Balance should not be null");
+        assertThat(new BigDecimal(balanceObj.toString()))
             .isEqualByComparingTo(new BigDecimal("123.45"));
     }
 
@@ -158,14 +171,22 @@ public class WalletControllerTest {
         );
 
         // when
-        ResponseEntity<Map> response = restTemplate.postForEntity(
+        ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
                 getBaseUrl() + "/transfers",
-                transferRequest,
-                Map.class);
+                HttpMethod.POST,
+                new HttpEntity<>(transferRequest),
+                new ParameterizedTypeReference<Map<String, Object>>() {});
 
         // then
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-        assertTrue(response.getBody().get("message").toString().contains("Insufficient funds"));
+        Map<String, Object> responseBody = response.getBody();
+        assertNotNull(responseBody, "Response body should not be null");
+        
+        assertThat(responseBody.containsKey("message")).isTrue();
+        Object message = responseBody.get("message");
+        assertNotNull(message, "Message field should not be null");
+        String errorMessage = message.toString().toLowerCase();
+        assertThat(errorMessage).containsAnyOf("insufficient funds");
 
         // Verify the balances remain unchanged
         BigDecimal fromBalance = getAccountBalance(fromAccount.getId());
@@ -189,14 +210,22 @@ public class WalletControllerTest {
         );
 
         // when
-        ResponseEntity<Map> response = restTemplate.postForEntity(
+        ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
                 getBaseUrl() + "/transfers",
-                transferRequest,
-                Map.class);
+                HttpMethod.POST,
+                new HttpEntity<>(transferRequest),
+                new ParameterizedTypeReference<Map<String, Object>>() {});
 
         // then
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
-        assertTrue(response.getBody().get("message").toString().contains("not found"));
+        Map<String, Object> responseBody = response.getBody();
+        assertNotNull(responseBody, "Response body should not be null");
+        
+        assertThat(responseBody.containsKey("message")).isTrue();
+        Object message = responseBody.get("message");
+        assertNotNull(message, "Message field should not be null");
+        String errorMessage = message.toString().toLowerCase();
+        assertThat(errorMessage).containsAnyOf("not found");
     }
 
     @Test
@@ -214,16 +243,21 @@ public class WalletControllerTest {
         );
 
         // when
-        ResponseEntity<Map> response = restTemplate.postForEntity(
+        ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
                 getBaseUrl() + "/transfers",
-                transferRequest,
-                Map.class);
+                HttpMethod.POST,
+                new HttpEntity<>(transferRequest),
+                new ParameterizedTypeReference<Map<String, Object>>() {});
 
         // then
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-        assertThat(response.getBody()).isNotNull();
-        assertThat(response.getBody().containsKey("message")).isTrue();
-        String errorMessage = response.getBody().get("message").toString().toLowerCase();
+        Map<String, Object> responseBody = response.getBody();
+        assertNotNull(responseBody, "Response body should not be null");
+        
+        assertThat(responseBody.containsKey("message")).isTrue();
+        Object message = responseBody.get("message");
+        assertNotNull(message, "Message field should not be null");
+        String errorMessage = message.toString().toLowerCase();
         assertThat(errorMessage).containsAnyOf("amount", "negative", "positive", "greater than 0");
     }
 
@@ -248,35 +282,43 @@ public class WalletControllerTest {
                 Void.class);
 
         // when - get sender's transactions
-        ResponseEntity<List> fromResponse = restTemplate.getForEntity(
+        ResponseEntity<List<Map<String, Object>>> fromResponse = restTemplate.exchange(
                 getBaseUrl() + "/accounts/{id}/transactions",
-                List.class,
+                HttpMethod.GET,
+                null,
+                new ParameterizedTypeReference<List<Map<String, Object>>>() {},
                 fromAccount.getId());
 
         // when - get receiver's transactions
-        ResponseEntity<List> toResponse = restTemplate.getForEntity(
+        ResponseEntity<List<Map<String, Object>>> toResponse = restTemplate.exchange(
                 getBaseUrl() + "/accounts/{id}/transactions",
-                List.class,
+                HttpMethod.GET,
+                null,
+                new ParameterizedTypeReference<List<Map<String, Object>>>() {},
                 toAccount.getId());
 
         // then
         assertThat(fromResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(fromResponse.getBody()).isNotNull();
+        List<Map<String, Object>> fromTransactions = fromResponse.getBody();
+        assertNotNull(fromTransactions, "Transactions list should not be null");
         // Only verify that transactions are present, not the exact count
-        assertThat(fromResponse.getBody().size()).isGreaterThan(0);
+        assertThat(fromTransactions.size()).isGreaterThan(0);
 
         assertThat(toResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(toResponse.getBody()).isNotNull();
-        assertThat(toResponse.getBody().size()).isGreaterThan(0);
+        List<Map<String, Object>> toTransactions = toResponse.getBody();
+        assertNotNull(toTransactions, "Transactions list should not be null");
+        assertThat(toTransactions.size()).isGreaterThan(0);
     }
 
     @Test
     public void getTransactions_ShouldReturn404ForNonExistentAccount() {
         // when
         UUID nonExistentId = UUID.randomUUID();
-        ResponseEntity<Map> response = restTemplate.getForEntity(
+        ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
                 getBaseUrl() + "/accounts/{id}/transactions",
-                Map.class,
+                HttpMethod.GET,
+                null,
+                new ParameterizedTypeReference<Map<String, Object>>() {},
                 nonExistentId);
 
         // then
@@ -311,8 +353,11 @@ public class WalletControllerTest {
                             getBaseUrl() + "/transfers",
                             transferRequest,
                             Void.class);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
                 } catch (Exception e) {
-                    e.printStackTrace();
+                    // Log the exception but continue
+                    System.err.println("Error during concurrent transfer: " + e.getMessage());
                 } finally {
                     endLatch.countDown();
                 }
@@ -344,6 +389,7 @@ public class WalletControllerTest {
                 Account.class);
         
         Account account = createResponse.getBody();
+        assertNotNull(account, "Created account should not be null");
         
         // If initial balance is not zero, create a deposit transaction
         if (initialBalance.compareTo(BigDecimal.ZERO) > 0) {
@@ -379,6 +425,7 @@ public class WalletControllerTest {
                 Account.class);
         
         Account systemAccount = createResponse.getBody();
+        assertNotNull(systemAccount, "System account should not be null");
         
         // Add a very large credit entry to the system account
         doubleEntryService.createSystemCreditEntry(
@@ -390,15 +437,18 @@ public class WalletControllerTest {
         return systemAccount.getId();
     }
     
-    private Account createAccountWithZeroBalance() {
-        return createAccountWithBalance(BigDecimal.ZERO);
-    }
-    
     private BigDecimal getAccountBalance(UUID accountId) {
-        ResponseEntity<Map> response = restTemplate.getForEntity(
+        ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
                 getBaseUrl() + "/accounts/{id}/balance",
-                Map.class,
+                HttpMethod.GET,
+                null,
+                new ParameterizedTypeReference<Map<String, Object>>() {},
                 accountId);
-        return new BigDecimal(response.getBody().get("balance").toString());
+        
+        Map<String, Object> body = response.getBody();
+        assertNotNull(body, "Response body should not be null");
+        Object balance = body.get("balance");
+        assertNotNull(balance, "Balance field should not be null");
+        return new BigDecimal(balance.toString());
     }
 } 

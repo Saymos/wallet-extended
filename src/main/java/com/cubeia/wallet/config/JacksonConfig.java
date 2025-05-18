@@ -34,14 +34,16 @@ public class JacksonConfig {
      */
     @Bean
     public ObjectMapper objectMapper(Jackson2ObjectMapperBuilder builder) {
-        ObjectMapper objectMapper = builder.build()
+        return builder.build()
                 .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
                 .configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false)
                 .setSerializationInclusion(JsonInclude.Include.NON_NULL)
                 .setVisibility(PropertyAccessor.FIELD, JsonAutoDetect.Visibility.ANY)
-                .registerModule(new JavaTimeModule());
-
-        // Register custom serializer and deserializer for AccountType
+                .registerModule(new JavaTimeModule())
+                .registerModule(createAccountTypeModule());
+    }
+    
+    private SimpleModule createAccountTypeModule() {
         SimpleModule accountTypeModule = new SimpleModule();
         accountTypeModule.addSerializer(AccountType.class, new JsonSerializer<AccountType>() {
             @Override
@@ -72,8 +74,6 @@ public class JacksonConfig {
             }
         });
         
-        objectMapper.registerModule(accountTypeModule);
-
-        return objectMapper;
+        return accountTypeModule;
     }
 } 

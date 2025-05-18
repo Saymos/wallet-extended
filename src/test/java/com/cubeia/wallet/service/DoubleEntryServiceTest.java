@@ -202,7 +202,7 @@ class DoubleEntryServiceTest {
             java.lang.reflect.Field field = Transaction.class.getDeclaredField("id");
             field.setAccessible(true);
             field.set(transaction, id);
-        } catch (Exception e) {
+        } catch (IllegalAccessException | IllegalArgumentException | NoSuchFieldException | SecurityException e) {
             throw new RuntimeException("Failed to set transaction ID", e);
         }
     }

@@ -1,19 +1,23 @@
 package com.cubeia.wallet.model;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.when;
-
 import java.math.BigDecimal;
 import java.util.Optional;
 import java.util.UUID;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.Primary;
 import org.springframework.test.context.ActiveProfiles;
 
 import com.cubeia.wallet.repository.AccountRepository;
@@ -26,8 +30,23 @@ import com.cubeia.wallet.service.DoubleEntryService;
  */
 @DataJpaTest
 @ActiveProfiles("test")
-@Import(DoubleEntryService.class)
+@Import(AccountTest.TestConfig.class)
 class AccountTest {
+
+    /**
+     * Test configuration that provides a mock DoubleEntryService
+     * to avoid database dependencies in tests
+     */
+    @TestConfiguration
+    static class TestConfig {
+        @Bean
+        @Primary
+        public DoubleEntryService doubleEntryService() {
+            DoubleEntryService mockService = mock(DoubleEntryService.class);
+            when(mockService.calculateBalance(any(UUID.class))).thenReturn(BigDecimal.ZERO);
+            return mockService;
+        }
+    }
 
     @Autowired
     private TestEntityManager entityManager;
@@ -35,17 +54,11 @@ class AccountTest {
     @Autowired
     private AccountRepository accountRepository;
     
-    @MockBean
-    private DoubleEntryService doubleEntryService;
-    
     /**
      * Test that an Account can be persisted and then retrieved with all properties intact.
      */
     @Test
     public void testPersistAndLoad() {
-        // Set up mock for balance calculation
-        when(doubleEntryService.calculateBalance(any(UUID.class))).thenReturn(BigDecimal.ZERO);
-        
         // Create an account
         Account account = new Account(Currency.EUR, AccountType.MainAccount.getInstance());
         
@@ -72,14 +85,11 @@ class AccountTest {
      */
     @Test
     public void testCreatePersistWithAllProperties() {
-        // Set up mock for balance calculation
-        when(doubleEntryService.calculateBalance(any(UUID.class))).thenReturn(BigDecimal.ZERO);
-        
         // Create account
         Account account = new Account(Currency.USD, AccountType.BonusAccount.getInstance());
         
         // Save using repository
-        Account savedAccount = accountRepository.save(account);
+        accountRepository.save(account);
         
         // Flush changes to the database
         accountRepository.flush();
@@ -103,9 +113,6 @@ class AccountTest {
      */
     @Test
     public void testRepositoryCreateAndFind() {
-        // Set up mock for balance calculation
-        when(doubleEntryService.calculateBalance(any(UUID.class))).thenReturn(BigDecimal.ZERO);
-        
         // Create account using repository
         Account account = new Account(Currency.EUR, AccountType.JackpotAccount.getInstance());
         

@@ -135,7 +135,7 @@ class PerformanceTest {
                     }
                     
                     successfulTransfers.incrementAndGet();
-                } catch (Exception e) {
+                } catch (InterruptedException e) {
                     System.err.println("Transfer failed: " + e.getMessage());
                     failedTransfers.incrementAndGet();
                 } finally {
@@ -298,7 +298,7 @@ class PerformanceTest {
                     }
                     
                     successfulTransfers.incrementAndGet();
-                } catch (Exception e) {
+                } catch (InterruptedException e) {
                     System.err.println("Transfer failed: " + e.getMessage());
                     failedTransfers.incrementAndGet();
                 } finally {

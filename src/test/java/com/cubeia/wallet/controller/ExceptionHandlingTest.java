@@ -118,14 +118,15 @@ class ExceptionHandlingTest {
         assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
         
         // and - error response should contain proper message
-        Object body = response.getBody();
-        assertNotNull(body, "Response body should not be null");
-        assertTrue(body instanceof Map, "Response body should be a Map");
+        Map<String, Object> responseBody = response.getBody();
+        assertNotNull(responseBody, "Response body should not be null");
         
-        Map<String, Object> responseBody = (Map<String, Object>) body;
+        // Safely get the message field with null check
         Object message = responseBody.get("message");
-        assertNotNull(message, "Message should not be null");
-        assertTrue(message.toString().contains("Account not found"));
+        assertNotNull(message, "Message field should not be null");
+        String messageText = message.toString();
+        assertTrue(messageText.contains("Account not found"), 
+                "Expected message to contain 'Account not found', but was: " + messageText);
     }
 
     @Test
@@ -156,14 +157,15 @@ class ExceptionHandlingTest {
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
         
         // and - error response should contain proper message
-        Object body = response.getBody();
-        assertNotNull(body, "Response body should not be null");
-        assertTrue(body instanceof Map, "Response body should be a Map");
+        Map<String, Object> responseBody = response.getBody();
+        assertNotNull(responseBody, "Response body should not be null");
         
-        Map<String, Object> responseBody = (Map<String, Object>) body;
+        // Safely get the message field with null check
         Object message = responseBody.get("message");
-        assertNotNull(message, "Message should not be null");
-        assertTrue(message.toString().contains("Insufficient funds"));
+        assertNotNull(message, "Message field should not be null");
+        String messageText = message.toString();
+        assertTrue(messageText.contains("Insufficient funds"), 
+                "Expected message to contain 'Insufficient funds', but was: " + messageText);
     }
 
     @Test
@@ -191,13 +193,12 @@ class ExceptionHandlingTest {
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
         
         // and - error response should contain a message about validation failure
-        Object body = response.getBody();
-        assertNotNull(body, "Response body should not be null");
-        assertTrue(body instanceof Map, "Response body should be a Map");
+        Map<String, Object> responseBody = response.getBody();
+        assertNotNull(responseBody, "Response body should not be null");
         
-        Map<String, Object> responseBody = (Map<String, Object>) body;
+        // Safely get the message field with null check
         Object message = responseBody.get("message");
-        assertNotNull(message, "Message should not be null");
+        assertNotNull(message, "Message field should not be null");
         String errorMessage = message.toString().toLowerCase();
         assertTrue(errorMessage.contains("amount") || errorMessage.contains("greater than 0") || errorMessage.contains("positive"),
                 "Error should mention amount or positive value requirement: " + errorMessage);
@@ -231,14 +232,15 @@ class ExceptionHandlingTest {
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
         
         // and - error response should contain proper message about currency mismatch
-        Object body = response.getBody();
-        assertNotNull(body, "Response body should not be null");
-        assertTrue(body instanceof Map, "Response body should be a Map");
+        Map<String, Object> responseBody = response.getBody();
+        assertNotNull(responseBody, "Response body should not be null");
         
-        Map<String, Object> responseBody = (Map<String, Object>) body;
+        // Safely get the message field with null check
         Object message = responseBody.get("message");
-        assertNotNull(message, "Message should not be null");
-        assertTrue(message.toString().contains("different currencies"));
+        assertNotNull(message, "Message field should not be null");
+        String messageText = message.toString();
+        assertTrue(messageText.contains("different currencies"), 
+                "Expected message to contain 'different currencies', but was: " + messageText);
     }
 
     @Test
@@ -261,13 +263,12 @@ class ExceptionHandlingTest {
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
         
         // and - error response should mention the validation failure
-        Object body = response.getBody();
-        assertNotNull(body, "Response body should not be null");
-        assertTrue(body instanceof Map, "Response body should be a Map");
+        Map<String, Object> responseBody = response.getBody();
+        assertNotNull(responseBody, "Response body should not be null");
         
-        Map<String, Object> responseBody = (Map<String, Object>) body;
+        // Safely get the message field with null check
         Object message = responseBody.get("message");
-        assertNotNull(message, "Message should not be null");
+        assertNotNull(message, "Message field should not be null");
         String errorMessage = message.toString().toLowerCase();
         assertTrue(errorMessage.contains("amount") || errorMessage.contains("missing") || errorMessage.contains("required"),
                 "Error should mention amount or missing/required: " + errorMessage);

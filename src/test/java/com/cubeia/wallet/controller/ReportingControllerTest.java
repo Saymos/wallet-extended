@@ -1,27 +1,26 @@
 package com.cubeia.wallet.controller;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.when;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.closeTo;
-
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.UUID;
 
+import static org.hamcrest.Matchers.is;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.when;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.web.servlet.MockMvc;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.cubeia.wallet.dto.AccountLedgerDTO;
 import com.cubeia.wallet.dto.AccountStatementDTO;
@@ -31,7 +30,8 @@ import com.cubeia.wallet.model.EntryType;
 import com.cubeia.wallet.model.TransactionType;
 import com.cubeia.wallet.service.ReportingService;
 
-@WebMvcTest(ReportingController.class)
+@SpringBootTest
+@AutoConfigureMockMvc
 public class ReportingControllerTest {
 
     @Autowired
@@ -45,10 +45,107 @@ public class ReportingControllerTest {
     private LocalDateTime now;
 
     @BeforeEach
+    @SuppressWarnings("unused") // Called implicitly by JUnit
     void setUp() {
         accountId = UUID.randomUUID();
         transactionId = UUID.randomUUID();
         now = LocalDateTime.now();
+        
+        // Configure mock responses for transaction history
+        TransactionHistoryDTO.LedgerEntryDTO entry1 = new TransactionHistoryDTO.LedgerEntryDTO(
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                EntryType.DEBIT.name(),
+                new BigDecimal("100.00"),
+                now,
+                "Test debit"
+        );
+        
+        TransactionHistoryDTO.LedgerEntryDTO entry2 = new TransactionHistoryDTO.LedgerEntryDTO(
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                EntryType.CREDIT.name(),
+                new BigDecimal("100.00"),
+                now,
+                "Test credit"
+        );
+        
+        TransactionHistoryDTO history = new TransactionHistoryDTO(
+                transactionId,
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                new BigDecimal("100.00"),
+                Currency.EUR,
+                TransactionType.TRANSFER,
+                now,
+                "TEST-REF-123",
+                Arrays.asList(entry1, entry2)
+        );
+        
+        when(reportingService.getTransactionHistory(any(UUID.class))).thenReturn(history);
+        
+        // Configure mock responses for account ledger
+        AccountLedgerDTO.LedgerEntryWithBalanceDTO ledgerEntry1 = new AccountLedgerDTO.LedgerEntryWithBalanceDTO(
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                EntryType.CREDIT,
+                new BigDecimal("50.00"),
+                now.minusDays(1),
+                "Credit test",
+                new BigDecimal("50.00")
+        );
+        
+        AccountLedgerDTO.LedgerEntryWithBalanceDTO ledgerEntry2 = new AccountLedgerDTO.LedgerEntryWithBalanceDTO(
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                EntryType.DEBIT,
+                new BigDecimal("30.00"),
+                now,
+                "Debit test",
+                new BigDecimal("20.00")
+        );
+        
+        AccountLedgerDTO ledger = new AccountLedgerDTO(
+                accountId,
+                Currency.EUR,
+                new BigDecimal("20.00"),
+                Arrays.asList(ledgerEntry2, ledgerEntry1)
+        );
+        
+        when(reportingService.getAccountLedger(any(UUID.class), anyInt(), anyInt())).thenReturn(ledger);
+        
+        // Configure mock responses for account statement
+        AccountStatementDTO.TransactionSummaryDTO summary1 = new AccountStatementDTO.TransactionSummaryDTO(
+                UUID.randomUUID(),
+                now.minusDays(15),
+                "Withdrawal",
+                new BigDecimal("50.00"),
+                false
+        );
+        
+        AccountStatementDTO.TransactionSummaryDTO summary2 = new AccountStatementDTO.TransactionSummaryDTO(
+                UUID.randomUUID(),
+                now.minusDays(5),
+                "Deposit",
+                new BigDecimal("75.00"),
+                true
+        );
+        
+        AccountStatementDTO statement = new AccountStatementDTO(
+                accountId,
+                Currency.EUR,
+                now.minusDays(30),
+                now,
+                new BigDecimal("200.00"),
+                new BigDecimal("225.00"),
+                new BigDecimal("50.00"),
+                new BigDecimal("75.00"),
+                2,
+                Arrays.asList(summary1, summary2)
+        );
+        
+        when(reportingService.getAccountStatement(any(UUID.class), any(LocalDateTime.class), any(LocalDateTime.class)))
+                .thenReturn(statement);
     }
 
     @Test

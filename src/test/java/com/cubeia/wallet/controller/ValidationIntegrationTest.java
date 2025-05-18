@@ -88,8 +88,13 @@ public class ValidationIntegrationTest {
 
         // then
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-        assertNotNull(response.getBody());
-        Object message = response.getBody().get("message");
+        
+        // Check for null response body
+        Map<String, Object> responseBody = response.getBody();
+        assertNotNull(responseBody, "Response body should not be null");
+        
+        // Now safely access the message field
+        Object message = responseBody.get("message");
         assertNotNull(message, "Message should not be null");
         assertTrue(message.toString().contains("Insufficient funds"));
     }
@@ -124,8 +129,13 @@ public class ValidationIntegrationTest {
 
         // then
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-        assertNotNull(response.getBody());
-        Object message = response.getBody().get("message");
+        
+        // Check for null response body
+        Map<String, Object> responseBody = response.getBody();
+        assertNotNull(responseBody, "Response body should not be null");
+        
+        // Now safely access the message field
+        Object message = responseBody.get("message");
         assertNotNull(message, "Message should not be null");
         String errorMessage = message.toString();
         assertTrue(errorMessage.toLowerCase().contains("currency mismatch") 
@@ -182,8 +192,13 @@ public class ValidationIntegrationTest {
 
         // then
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-        assertNotNull(response.getBody());
-        Object message = response.getBody().get("message");
+        
+        // Check for null response body
+        Map<String, Object> responseBody = response.getBody();
+        assertNotNull(responseBody, "Response body should not be null");
+        
+        // Now safely access the message field
+        Object message = responseBody.get("message");
         assertNotNull(message, "Message should not be null");
         assertTrue(message.toString().contains("already exists with different parameters"));
     }
@@ -211,8 +226,13 @@ public class ValidationIntegrationTest {
 
         // then
         assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
-        assertNotNull(response.getBody());
-        Object message = response.getBody().get("message");
+        
+        // Check for null response body
+        Map<String, Object> responseBody = response.getBody();
+        assertNotNull(responseBody, "Response body should not be null");
+        
+        // Now safely access the message field
+        Object message = responseBody.get("message");
         assertNotNull(message, "Message should not be null");
         assertTrue(message.toString().contains("Account not found"));
     }

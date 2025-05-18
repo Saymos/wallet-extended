@@ -3,6 +3,7 @@ package com.cubeia.wallet.config;
 import java.io.IOException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import org.junit.jupiter.api.Test;
@@ -68,9 +69,11 @@ public class JacksonConfigTest {
     @Test
     public void testDeserializeInvalidAccountType() {
         // Test invalid account type
-        assertThrows(IOException.class, () -> {
+        IOException exception = assertThrows(IOException.class, () -> {
             objectMapper.readValue("\"INVALID_TYPE\"", AccountType.class);
         });
+        // Verify exception was thrown correctly
+        assertNotNull(exception);
     }
 
     @Test
@@ -82,7 +85,7 @@ public class JacksonConfigTest {
         // Create a wrapper class to test null field serialization
         class Wrapper {
             @SuppressWarnings("unused") // Used by Jackson for serialization
-            private String name = "test";
+            private final String name = "test";
         }
         
         Wrapper wrapper = new Wrapper();

@@ -71,7 +71,7 @@ class ReportingServiceTest {
             java.lang.reflect.Field idField = Account.class.getDeclaredField("id");
             idField.setAccessible(true);
             idField.set(account, accountId);
-        } catch (Exception e) {
+        } catch (IllegalAccessException | IllegalArgumentException | NoSuchFieldException | SecurityException e) {
             throw new RuntimeException("Failed to set account ID for test", e);
         }
         
@@ -88,7 +88,7 @@ class ReportingServiceTest {
             java.lang.reflect.Field idField = Transaction.class.getDeclaredField("id");
             idField.setAccessible(true);
             idField.set(transaction, transactionId);
-        } catch (Exception e) {
+        } catch (IllegalAccessException | IllegalArgumentException | NoSuchFieldException | SecurityException e) {
             throw new RuntimeException("Failed to set transaction ID for test", e);
         }
         

@@ -183,7 +183,7 @@ public class DeadlockPreventionTest {
                 System.out.println("Starting transfer A → B");
                 transactionService.transfer(accountAId, accountBId, transferAmount, null, null);
                 System.out.println("Completed transfer A → B");
-            } catch (Exception e) {
+            } catch (InterruptedException e) {
                 String message = "Transfer A → B failed: " + e.getMessage();
                 System.err.println(message);
                 synchronized(errorMessages) {
@@ -202,7 +202,7 @@ public class DeadlockPreventionTest {
                 System.out.println("Starting transfer B → A");
                 transactionService.transfer(accountBId, accountAId, transferAmount, null, null);
                 System.out.println("Completed transfer B → A");
-            } catch (Exception e) {
+            } catch (InterruptedException e) {
                 String message = "Transfer B → A failed: " + e.getMessage();
                 System.err.println(message);
                 synchronized(errorMessages) {
@@ -227,10 +227,6 @@ public class DeadlockPreventionTest {
         assertTrue(completed, "Transfers did not complete within timeout. This suggests a deadlock occurred.");
         assertEquals(0, failures.get(), 
                 "Some transfers failed. Potential deadlock or locking issue.\nErrors: " + errorMessages.toString());
-        
-        // Reload accounts to get latest state
-        Account refreshedA = accountRepository.findById(accountAId).orElseThrow();
-        Account refreshedB = accountRepository.findById(accountBId).orElseThrow();
         
         // The combined balance should still sum to the initial amount since we transferred the same amount in both directions
         // Note: Due to concurrent operations, individual account balances might be off by a small amount but their sum should match

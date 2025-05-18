@@ -91,7 +91,7 @@ class LedgerEntryTest {
     @Test
     public void testNullFieldValidation() {
         // Account ID
-        assertThrows(IllegalArgumentException.class, () -> 
+        IllegalArgumentException exception1 = assertThrows(IllegalArgumentException.class, () -> 
             LedgerEntry.builder()
                 .accountId(null)
                 .transactionId(transactionId)
@@ -101,9 +101,10 @@ class LedgerEntryTest {
                 .currency(currency)
                 .build(),
             "Should validate accountId is not null");
+        assertNotNull(exception1.getMessage(), "Exception message should not be null");
 
         // Transaction ID
-        assertThrows(IllegalArgumentException.class, () -> 
+        IllegalArgumentException exception2 = assertThrows(IllegalArgumentException.class, () -> 
             LedgerEntry.builder()
                 .accountId(accountId)
                 .transactionId(null)
@@ -113,9 +114,10 @@ class LedgerEntryTest {
                 .currency(currency)
                 .build(),
             "Should validate transactionId is not null");
+        assertNotNull(exception2.getMessage(), "Exception message should not be null");
 
         // Entry Type
-        assertThrows(IllegalArgumentException.class, () -> 
+        IllegalArgumentException exception3 = assertThrows(IllegalArgumentException.class, () -> 
             LedgerEntry.builder()
                 .accountId(accountId)
                 .transactionId(transactionId)
@@ -125,9 +127,10 @@ class LedgerEntryTest {
                 .currency(currency)
                 .build(),
             "Should validate entryType is not null");
+        assertNotNull(exception3.getMessage(), "Exception message should not be null");
 
         // Amount
-        assertThrows(IllegalArgumentException.class, () -> 
+        IllegalArgumentException exception4 = assertThrows(IllegalArgumentException.class, () -> 
             LedgerEntry.builder()
                 .accountId(accountId)
                 .transactionId(transactionId)
@@ -137,9 +140,10 @@ class LedgerEntryTest {
                 .currency(currency)
                 .build(),
             "Should validate amount is not null");
+        assertNotNull(exception4.getMessage(), "Exception message should not be null");
             
         // Currency
-        assertThrows(IllegalArgumentException.class, () -> 
+        IllegalArgumentException exception5 = assertThrows(IllegalArgumentException.class, () -> 
             LedgerEntry.builder()
                 .accountId(accountId)
                 .transactionId(transactionId)
@@ -149,12 +153,13 @@ class LedgerEntryTest {
                 .currency(null)
                 .build(),
             "Should validate currency is not null");
+        assertNotNull(exception5.getMessage(), "Exception message should not be null");
     }
     
     @Test
     public void testAmountValidation() {
         // Zero amount
-        assertThrows(IllegalArgumentException.class, () -> 
+        IllegalArgumentException exception1 = assertThrows(IllegalArgumentException.class, () -> 
             LedgerEntry.builder()
                 .accountId(accountId)
                 .transactionId(transactionId)
@@ -164,9 +169,10 @@ class LedgerEntryTest {
                 .currency(currency)
                 .build(),
             "Should validate amount is positive");
+        assertNotNull(exception1.getMessage(), "Exception message should not be null");
 
         // Zero amount after abs()
-        assertThrows(IllegalArgumentException.class, () -> 
+        IllegalArgumentException exception2 = assertThrows(IllegalArgumentException.class, () -> 
             LedgerEntry.builder()
                 .accountId(accountId)
                 .transactionId(transactionId)
@@ -176,6 +182,7 @@ class LedgerEntryTest {
                 .currency(currency)
                 .build(),
             "Should validate amount is positive");
+        assertNotNull(exception2.getMessage(), "Exception message should not be null");
     }
     
     @Test

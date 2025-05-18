@@ -7,9 +7,9 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import static org.mockito.ArgumentMatchers.eq;
@@ -32,27 +32,6 @@ import com.cubeia.wallet.service.ValidationService;
 
 @ExtendWith(MockitoExtension.class)
 class ModelClassesTest {
-
-    /**
-     * Test extension of TransactionService that makes executeTransaction public
-     * for testing purposes
-     */
-    static class TestTransactionService extends TransactionService {
-        public TestTransactionService(
-                AccountRepository accountRepository,
-                TransactionRepository transactionRepository,
-                ValidationService validationService,
-                DoubleEntryService doubleEntryService,
-                PlatformTransactionManager transactionManager) {
-            super(accountRepository, transactionRepository, validationService, doubleEntryService, transactionManager);
-        }
-        
-        // Make executeTransaction public for testing
-        @Override
-        public void executeTransaction(Transaction transaction) {
-            super.executeTransaction(transaction);
-        }
-    }
     
     @Mock
     private AccountRepository accountRepository;
@@ -75,9 +54,11 @@ class ModelClassesTest {
     private DoubleEntryService doubleEntryService;
     
     private TransactionService transactionService;
-    
-    @BeforeEach
-    void setUp() {
+
+    /**
+     * Initializes services needed for testing
+     */
+    private void initServices() {
         // Create the DoubleEntryService
         doubleEntryService = new DoubleEntryService(ledgerEntryRepository, accountRepository);
         
@@ -130,7 +111,7 @@ class ModelClassesTest {
             Field idField = Account.class.getDeclaredField("id");
             idField.setAccessible(true);
             idField.set(account, id);
-        } catch (Exception e) {
+        } catch (NoSuchFieldException | IllegalAccessException e) {
             throw new RuntimeException("Failed to set ID", e);
         }
     }
@@ -154,11 +135,13 @@ class ModelClassesTest {
         // Mock DoubleEntryService to return the balance for this account
         lenient().when(doubleEntryService.calculateBalance(accountId)).thenReturn(balance);
         lenient().when(doubleEntryService.calculateBalanceByCurrency(accountId, account.getCurrency())).thenReturn(balance);
-        // No more setDoubleEntryService
     }
     
     @Test
     void transaction_Execute() {
+        // Initialize needed services
+        initServices();
+        
         // Arrange - Create source and destination accounts
         Account fromAccount = new Account(Currency.EUR, AccountType.MainAccount.getInstance());
         Account toAccount = new Account(Currency.EUR, AccountType.MainAccount.getInstance());
@@ -201,7 +184,7 @@ class ModelClassesTest {
                     Field idField = Transaction.class.getDeclaredField("id");
                     idField.setAccessible(true);
                     idField.set(savedTransaction, UUID.randomUUID());
-                } catch (Exception e) {
+                } catch (NoSuchFieldException | IllegalAccessException e) {
                     throw new RuntimeException("Failed to set transaction ID", e);
                 }
                 return savedTransaction;
@@ -227,6 +210,9 @@ class ModelClassesTest {
     
     @Test
     void transaction_Execute_InsufficientFunds() {
+        // Initialize needed services
+        initServices();
+        
         // Arrange - Create source and destination accounts
         Account fromAccount = new Account(Currency.EUR, AccountType.MainAccount.getInstance());
         Account toAccount = new Account(Currency.EUR, AccountType.MainAccount.getInstance());
@@ -256,14 +242,21 @@ class ModelClassesTest {
         lenient().when(accountRepository.existsById(toAccountId)).thenReturn(true);
         
         // Act & Assert - Should throw exception
-        InsufficientFundsException exception = assertThrows(InsufficientFundsException.class, () -> {
-            transactionService.transfer(fromAccountId, toAccountId, amount, null, null);
-        });
+        InsufficientFundsException exception = assertThrows(
+            InsufficientFundsException.class,
+            () -> transactionService.transfer(fromAccountId, toAccountId, amount, null, null)
+        );
+        
+        // Verify the exception message is as expected
+        assertNotNull(exception, "Exception should not be null");
         assertTrue(exception.getMessage().contains("Insufficient funds"));
     }
     
     @Test
     void transaction_Execute_CurrencyMismatch() {
+        // Initialize needed services
+        initServices();
+        
         // Arrange - Create accounts with different currencies
         Account fromAccount = new Account(Currency.EUR, AccountType.MainAccount.getInstance());
         Account toAccount = new Account(Currency.USD, AccountType.MainAccount.getInstance());
@@ -285,11 +278,13 @@ class ModelClassesTest {
             .thenThrow(CurrencyMismatchException.forTransfer(Currency.EUR, Currency.USD));
         
         // Act & Assert - Should throw exception
-        CurrencyMismatchException exception = assertThrows(CurrencyMismatchException.class, () -> {
-            transactionService.transfer(fromAccountId, toAccountId, amount, null, null);
-        });
+        CurrencyMismatchException exception = assertThrows(
+            CurrencyMismatchException.class,
+            () -> transactionService.transfer(fromAccountId, toAccountId, amount, null, null)
+        );
         
         // Verification requires both currencies in the message
+        assertNotNull(exception, "Exception should not be null");
         String message = exception.getMessage();
         assertTrue(message.contains("Cannot transfer between accounts with different currencies"));
     }
@@ -319,30 +314,39 @@ class ModelClassesTest {
     @Test
     void transaction_NegativeAmount() {
         // We expect an exception when trying to create a transaction with negative amount
-        assertThrows(IllegalArgumentException.class, () -> {
-            new Transaction(
+        IllegalArgumentException exception1 = assertThrows(
+            IllegalArgumentException.class, 
+            () -> new Transaction(
                 UUID.randomUUID(),
                 UUID.randomUUID(),
                 new BigDecimal("-10.00"),
                 TransactionType.TRANSFER,
                 Currency.EUR
-            );
-        });
+            )
+        );
+        
+        assertNotNull(exception1, "Exception should not be null");
         
         // Also test with zero amount
-        assertThrows(IllegalArgumentException.class, () -> {
-            new Transaction(
+        IllegalArgumentException exception2 = assertThrows(
+            IllegalArgumentException.class, 
+            () -> new Transaction(
                 UUID.randomUUID(),
                 UUID.randomUUID(),
                 BigDecimal.ZERO,
                 TransactionType.TRANSFER,
                 Currency.EUR
-            );
-        });
+            )
+        );
+        
+        assertNotNull(exception2, "Exception should not be null");
     }
     
     @Test
     void accountType_WithdrawalLimits() {
+        // Initialize needed services
+        initServices();
+        
         // Arrange
         Account mainAccount = new Account(Currency.EUR, AccountType.MainAccount.getInstance());
         Account bonusAccount = new Account(Currency.EUR, AccountType.BonusAccount.getInstance());
@@ -390,6 +394,9 @@ class ModelClassesTest {
     
     @Test
     void transaction_Execute_FromAccountNotFound() {
+        // Initialize needed services
+        initServices();
+        
         // Arrange - Create accounts
         Account toAccount = new Account(Currency.EUR, AccountType.MainAccount.getInstance());
         
@@ -406,16 +413,21 @@ class ModelClassesTest {
             .thenThrow(new AccountNotFoundException(fromAccountId));
         
         // Act & Assert - Should throw exception when account not found
-        AccountNotFoundException exception = assertThrows(AccountNotFoundException.class, () -> {
-            transactionService.transfer(fromAccountId, toAccountId, amount, null, null);
-        });
+        AccountNotFoundException exception = assertThrows(
+            AccountNotFoundException.class,
+            () -> transactionService.transfer(fromAccountId, toAccountId, amount, null, null)
+        );
         
         // Verify the exception contains the account ID
+        assertNotNull(exception, "Exception should not be null");
         assertTrue(exception.getMessage().contains(fromAccountId.toString()));
     }
     
     @Test
     void transaction_Execute_ToAccountNotFound() {
+        // Initialize needed services
+        initServices();
+        
         // Arrange - Create accounts
         Account fromAccount = new Account(Currency.EUR, AccountType.MainAccount.getInstance());
         
@@ -433,10 +445,12 @@ class ModelClassesTest {
             .thenThrow(new AccountNotFoundException(toAccountId));
         
         // Act & Assert - Should throw exception when account not found
-        AccountNotFoundException exception = assertThrows(AccountNotFoundException.class, () -> {
-            transactionService.transfer(fromAccountId, toAccountId, amount, null, null);
-        });
+        AccountNotFoundException exception = assertThrows(
+            AccountNotFoundException.class,
+            () -> transactionService.transfer(fromAccountId, toAccountId, amount, null, null)
+        );
         
+        assertNotNull(exception, "Exception should not be null");
         assertTrue(exception.getMessage().contains(toAccountId.toString()));
     }
 } 

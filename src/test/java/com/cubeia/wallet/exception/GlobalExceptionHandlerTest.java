@@ -7,7 +7,6 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -17,22 +16,13 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
-import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import com.cubeia.wallet.model.Currency;
 
 class GlobalExceptionHandlerTest {
 
-    private GlobalExceptionHandler exceptionHandler;
-    private WebRequest webRequest;
-
-    @BeforeEach
-    void setUp() {
-        exceptionHandler = new GlobalExceptionHandler();
-        webRequest = mock(WebRequest.class);
-        when(webRequest.getDescription(false)).thenReturn("uri=/test");
-    }
+    private GlobalExceptionHandler exceptionHandler = new GlobalExceptionHandler();
 
     @Test
     void handleAccountNotFoundException() {
@@ -45,11 +35,16 @@ class GlobalExceptionHandlerTest {
 
         // Assert
         assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
-        assertNotNull(response.getBody());
-        assertEquals(HttpStatus.NOT_FOUND.value(), response.getBody().getStatus());
-        assertTrue(response.getBody().getMessage().contains("Account not found"));
-        assertTrue(response.getBody().getMessage().contains(accountId.toString()));
-        assertNotNull(response.getBody().getTimestamp());
+        assertNotNull(response.getBody(), "Response body should not be null");
+        
+        // Store response body in local variable to avoid potential NPE
+        ErrorResponse errorResponse = response.getBody();
+        assertNotNull(errorResponse, "Error response should not be null");
+        
+        assertEquals(HttpStatus.NOT_FOUND.value(), errorResponse.getStatus());
+        assertTrue(errorResponse.getMessage().contains("Account not found"));
+        assertTrue(errorResponse.getMessage().contains(accountId.toString()));
+        assertNotNull(errorResponse.getTimestamp(), "Timestamp should not be null");
     }
 
     @Test
@@ -64,10 +59,15 @@ class GlobalExceptionHandlerTest {
 
         // Assert
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-        assertNotNull(response.getBody());
-        assertEquals(HttpStatus.BAD_REQUEST.value(), response.getBody().getStatus());
-        assertTrue(response.getBody().getMessage().contains("Insufficient funds"));
-        assertNotNull(response.getBody().getTimestamp());
+        assertNotNull(response.getBody(), "Response body should not be null");
+        
+        // Store response body in local variable to avoid potential NPE
+        ErrorResponse errorResponse = response.getBody();
+        assertNotNull(errorResponse, "Error response should not be null");
+        
+        assertEquals(HttpStatus.BAD_REQUEST.value(), errorResponse.getStatus());
+        assertTrue(errorResponse.getMessage().contains("Insufficient funds"));
+        assertNotNull(errorResponse.getTimestamp(), "Timestamp should not be null");
     }
 
     @Test
@@ -80,10 +80,15 @@ class GlobalExceptionHandlerTest {
 
         // Assert
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-        assertNotNull(response.getBody());
-        assertEquals(HttpStatus.BAD_REQUEST.value(), response.getBody().getStatus());
-        assertEquals("Currency mismatch: Expected EUR, but got USD", response.getBody().getMessage());
-        assertNotNull(response.getBody().getTimestamp());
+        assertNotNull(response.getBody(), "Response body should not be null");
+        
+        // Store response body in local variable to avoid potential NPE
+        ErrorResponse errorResponse = response.getBody();
+        assertNotNull(errorResponse, "Error response should not be null");
+        
+        assertEquals(HttpStatus.BAD_REQUEST.value(), errorResponse.getStatus());
+        assertEquals("Currency mismatch: Expected EUR, but got USD", errorResponse.getMessage());
+        assertNotNull(errorResponse.getTimestamp(), "Timestamp should not be null");
     }
 
     @Test
@@ -97,10 +102,15 @@ class GlobalExceptionHandlerTest {
 
         // Assert
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-        assertNotNull(response.getBody());
-        assertEquals(HttpStatus.BAD_REQUEST.value(), response.getBody().getStatus());
-        assertEquals("Invalid transaction: " + reason, response.getBody().getMessage());
-        assertNotNull(response.getBody().getTimestamp());
+        assertNotNull(response.getBody(), "Response body should not be null");
+        
+        // Store response body in local variable to avoid potential NPE
+        ErrorResponse errorResponse = response.getBody();
+        assertNotNull(errorResponse, "Error response should not be null");
+        
+        assertEquals(HttpStatus.BAD_REQUEST.value(), errorResponse.getStatus());
+        assertEquals("Invalid transaction: " + reason, errorResponse.getMessage());
+        assertNotNull(errorResponse.getTimestamp(), "Timestamp should not be null");
     }
 
     @Test
@@ -115,10 +125,15 @@ class GlobalExceptionHandlerTest {
 
         // Assert
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-        assertNotNull(response.getBody());
-        assertEquals(HttpStatus.BAD_REQUEST.value(), response.getBody().getStatus());
-        assertEquals("Invalid transaction with ID " + transactionId + ": " + reason, response.getBody().getMessage());
-        assertNotNull(response.getBody().getTimestamp());
+        assertNotNull(response.getBody(), "Response body should not be null");
+        
+        // Store response body in local variable to avoid potential NPE
+        ErrorResponse errorResponse = response.getBody();
+        assertNotNull(errorResponse, "Error response should not be null");
+        
+        assertEquals(HttpStatus.BAD_REQUEST.value(), errorResponse.getStatus());
+        assertEquals("Invalid transaction with ID " + transactionId + ": " + reason, errorResponse.getMessage());
+        assertNotNull(errorResponse.getTimestamp(), "Timestamp should not be null");
     }
 
     @Test
@@ -137,13 +152,18 @@ class GlobalExceptionHandlerTest {
 
         // Assert
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-        assertNotNull(response.getBody());
-        assertEquals(HttpStatus.BAD_REQUEST.value(), response.getBody().getStatus());
-        assertEquals("Validation failed", response.getBody().getMessage());
-        assertNotNull(response.getBody().getFieldErrors());
-        assertTrue(response.getBody().getFieldErrors().containsKey("amount"));
-        assertEquals("must be positive", response.getBody().getFieldErrors().get("amount"));
-        assertNotNull(response.getBody().getTimestamp());
+        assertNotNull(response.getBody(), "Response body should not be null");
+        
+        // Store response body in local variable to avoid potential NPE
+        ValidationErrorResponse errorResponse = response.getBody();
+        assertNotNull(errorResponse, "Error response should not be null");
+        
+        assertEquals(HttpStatus.BAD_REQUEST.value(), errorResponse.getStatus());
+        assertEquals("Validation failed", errorResponse.getMessage());
+        assertNotNull(errorResponse.getFieldErrors(), "Field errors should not be null");
+        assertTrue(errorResponse.getFieldErrors().containsKey("amount"));
+        assertEquals("must be positive", errorResponse.getFieldErrors().get("amount"));
+        assertNotNull(errorResponse.getTimestamp(), "Timestamp should not be null");
     }
 
     @Test
@@ -156,10 +176,15 @@ class GlobalExceptionHandlerTest {
 
         // Assert
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-        assertNotNull(response.getBody());
-        assertEquals(HttpStatus.BAD_REQUEST.value(), response.getBody().getStatus());
-        assertEquals("Illegal argument", response.getBody().getMessage());
-        assertNotNull(response.getBody().getTimestamp());
+        assertNotNull(response.getBody(), "Response body should not be null");
+        
+        // Store response body in local variable to avoid potential NPE
+        ErrorResponse errorResponse = response.getBody();
+        assertNotNull(errorResponse, "Error response should not be null");
+        
+        assertEquals(HttpStatus.BAD_REQUEST.value(), errorResponse.getStatus());
+        assertEquals("Illegal argument", errorResponse.getMessage());
+        assertNotNull(errorResponse.getTimestamp(), "Timestamp should not be null");
     }
 
     @Test
@@ -174,11 +199,16 @@ class GlobalExceptionHandlerTest {
 
         // Assert
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-        assertNotNull(response.getBody());
-        assertEquals(HttpStatus.BAD_REQUEST.value(), response.getBody().getStatus());
-        assertTrue(response.getBody().getMessage().contains("paramName"));
-        assertTrue(response.getBody().getMessage().contains("invalidValue"));
-        assertNotNull(response.getBody().getTimestamp());
+        assertNotNull(response.getBody(), "Response body should not be null");
+        
+        // Store response body in local variable to avoid potential NPE
+        ErrorResponse errorResponse = response.getBody();
+        assertNotNull(errorResponse, "Error response should not be null");
+        
+        assertEquals(HttpStatus.BAD_REQUEST.value(), errorResponse.getStatus());
+        assertTrue(errorResponse.getMessage().contains("paramName"));
+        assertTrue(errorResponse.getMessage().contains("invalidValue"));
+        assertNotNull(errorResponse.getTimestamp(), "Timestamp should not be null");
     }
 
     @Test
@@ -192,10 +222,15 @@ class GlobalExceptionHandlerTest {
 
         // Assert
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-        assertNotNull(response.getBody());
-        assertEquals(HttpStatus.BAD_REQUEST.value(), response.getBody().getStatus());
-        assertTrue(response.getBody().getMessage().contains("Malformed JSON"));
-        assertNotNull(response.getBody().getTimestamp());
+        assertNotNull(response.getBody(), "Response body should not be null");
+        
+        // Store response body in local variable to avoid potential NPE
+        ErrorResponse errorResponse = response.getBody();
+        assertNotNull(errorResponse, "Error response should not be null");
+        
+        assertEquals(HttpStatus.BAD_REQUEST.value(), errorResponse.getStatus());
+        assertTrue(errorResponse.getMessage().contains("Malformed JSON"));
+        assertNotNull(errorResponse.getTimestamp(), "Timestamp should not be null");
     }
 
     @Test
@@ -208,9 +243,14 @@ class GlobalExceptionHandlerTest {
 
         // Assert
         assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
-        assertNotNull(response.getBody());
-        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR.value(), response.getBody().getStatus());
-        assertEquals("An unexpected error occurred", response.getBody().getMessage());
-        assertNotNull(response.getBody().getTimestamp());
+        assertNotNull(response.getBody(), "Response body should not be null");
+        
+        // Store response body in local variable to avoid potential NPE
+        ErrorResponse errorResponse = response.getBody();
+        assertNotNull(errorResponse, "Error response should not be null");
+        
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR.value(), errorResponse.getStatus());
+        assertEquals("An unexpected error occurred", errorResponse.getMessage());
+        assertNotNull(errorResponse.getTimestamp(), "Timestamp should not be null");
     }
 } 

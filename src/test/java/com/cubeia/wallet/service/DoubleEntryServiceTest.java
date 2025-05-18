@@ -8,9 +8,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import static org.mockito.ArgumentMatchers.any;
 import org.mockito.Mock;
-import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -97,16 +97,37 @@ class DoubleEntryServiceTest {
         BigDecimal amount = new BigDecimal("200.00");
         String description = "System credit";
         
-        // Mock that both the target account and system funding account exist
-        lenient().when(accountRepository.existsById(accountId)).thenReturn(true);
-        lenient().when(accountRepository.existsById(any(UUID.class))).thenReturn(true);
+        // Mock that the account exists
+        when(accountRepository.existsById(accountId)).thenReturn(true);
+        
+        // Create ArgumentCaptor to capture the ledger entries
+        ArgumentCaptor<LedgerEntry> ledgerEntryCaptor = ArgumentCaptor.forClass(LedgerEntry.class);
         
         // Act
         doubleEntryService.createSystemCreditEntry(accountId, amount, description);
         
-        // Assert - verify that the save method was called with a LedgerEntry that has the right properties
-        // We should have 2 calls - one for the credit and one for the debit from system account
-        verify(ledgerEntryRepository, times(2)).save(any(LedgerEntry.class));
+        // Assert - verify that the save method was called twice and capture the entries
+        verify(ledgerEntryRepository, times(2)).save(ledgerEntryCaptor.capture());
+        
+        // Get the captured ledger entries
+        var capturedEntries = ledgerEntryCaptor.getAllValues();
+        
+        // Find the credit entry (to the target account) and the debit entry (from system account)
+        LedgerEntry creditEntry = capturedEntries.stream()
+            .filter(entry -> entry.getEntryType() == EntryType.CREDIT && entry.getAccountId().equals(accountId))
+            .findFirst()
+            .orElseThrow(() -> new AssertionError("Credit entry not found"));
+            
+        LedgerEntry debitEntry = capturedEntries.stream()
+            .filter(entry -> entry.getEntryType() == EntryType.DEBIT && !entry.getAccountId().equals(accountId))
+            .findFirst()
+            .orElseThrow(() -> new AssertionError("Debit entry from system account not found"));
+        
+        // Verify the entries have the correct properties
+        assertEquals(amount, creditEntry.getAmount(), "Credit amount should match the provided amount");
+        assertEquals(description, creditEntry.getDescription(), "Credit description should match");
+        assertEquals(amount, debitEntry.getAmount(), "Debit amount should match the provided amount");
+        assertEquals(accountId, creditEntry.getAccountId(), "Credit entry should be for the target account");
     }
     
     @Test
@@ -116,8 +137,6 @@ class DoubleEntryServiceTest {
         final UUID account2Id = UUID.randomUUID();
         final UUID account3Id = UUID.randomUUID();
         final BigDecimal initialSystemBalance = new BigDecimal("1000.00");
-        
-        lenient().when(accountRepository.existsById(any())).thenReturn(true);
         
         // We'll keep track of the ledger entries to calculate the final balance
         // Use AtomicReference to handle mutable state in lambda
@@ -136,8 +155,6 @@ class DoubleEntryServiceTest {
             .currency(Currency.EUR)
             .build();
             
-        lenient().when(ledgerEntryRepository.save(any())).thenReturn(creditEntry);
-        
         // Simulate the credit entry manually
         account1Balance.set(account1Balance.get().add(initialSystemBalance));
         

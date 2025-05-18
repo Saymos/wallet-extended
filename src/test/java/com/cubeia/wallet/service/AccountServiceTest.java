@@ -7,15 +7,12 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -38,11 +35,6 @@ class AccountServiceTest {
     @InjectMocks
     private AccountService accountService;
     
-    @BeforeEach
-    void setUp() {
-        // Use lenient() for all mocks to avoid UnnecessaryStubbingException
-    }
-
     /**
      * Helper method to set account ID using reflection (for testing)
      */
@@ -51,16 +43,9 @@ class AccountServiceTest {
             Field idField = Account.class.getDeclaredField("id");
             idField.setAccessible(true);
             idField.set(account, id);
-        } catch (Exception e) {
+        } catch (IllegalAccessException | IllegalArgumentException | NoSuchFieldException | SecurityException e) {
             throw new RuntimeException("Failed to set ID", e);
         }
-    }
-    
-    /**
-     * Helper method to set the DoubleEntryService in the Account instance
-     */
-    private void setDoubleEntryService(Account account, DoubleEntryService service) {
-        // No longer needed; remove this method
     }
 
     @Test
@@ -125,9 +110,8 @@ class AccountServiceTest {
         Account account = new Account(expectedCurrency, expectedAccountType);
         setAccountId(account, accountId);
         
-        // Mock the account with zero balance
-        lenient().when(doubleEntryService.calculateBalance(eq(accountId))).thenReturn(BigDecimal.ZERO);
-        lenient().when(accountRepository.findById(accountId)).thenReturn(Optional.of(account));
+        // The getAccount method only uses findById, so we only need to mock that
+        when(accountRepository.findById(accountId)).thenReturn(Optional.of(account));
 
         // Act
         Account result = accountService.getAccount(accountId);
@@ -138,5 +122,50 @@ class AccountServiceTest {
         assertEquals(expectedCurrency, result.getCurrency());
         assertEquals(expectedAccountType, result.getAccountType());
         verify(accountRepository, times(1)).findById(accountId);
+    }
+    
+    @Test
+    void getBalance_ShouldReturnBalanceFromDoubleEntryService() {
+        // Arrange
+        UUID accountId = UUID.randomUUID();
+        BigDecimal expectedBalance = new BigDecimal("123.45");
+        
+        // Mock repository to confirm account exists
+        when(accountRepository.existsById(accountId)).thenReturn(true);
+        
+        // Mock doubleEntryService to return the expected balance
+        when(doubleEntryService.calculateBalance(accountId)).thenReturn(expectedBalance);
+        
+        // Act
+        BigDecimal balance = accountService.getBalance(accountId);
+        
+        // Assert
+        assertEquals(expectedBalance, balance);
+        verify(accountRepository).existsById(accountId);
+        verify(doubleEntryService).calculateBalance(accountId);
+    }
+    
+    @Test
+    void getMaxWithdrawalAmount_ShouldReturnFullBalanceForMainAccount() {
+        // Arrange
+        UUID accountId = UUID.randomUUID();
+        BigDecimal currentBalance = new BigDecimal("500.00");
+        
+        Account account = new Account(Currency.EUR, AccountType.MainAccount.getInstance());
+        setAccountId(account, accountId);
+        
+        // Mock repository to return the account
+        when(accountRepository.findById(accountId)).thenReturn(Optional.of(account));
+        
+        // Mock doubleEntryService to return the current balance
+        when(doubleEntryService.calculateBalance(accountId)).thenReturn(currentBalance);
+        
+        // Act
+        BigDecimal maxWithdrawal = accountService.getMaxWithdrawalAmount(accountId);
+        
+        // Assert
+        assertEquals(currentBalance, maxWithdrawal);
+        verify(accountRepository).findById(accountId);
+        verify(doubleEntryService).calculateBalance(accountId);
     }
 } 

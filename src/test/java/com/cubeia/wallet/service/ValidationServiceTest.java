@@ -14,7 +14,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import static org.mockito.ArgumentMatchers.eq;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.when;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.cubeia.wallet.exception.AccountNotFoundException;
@@ -78,17 +78,18 @@ class ValidationServiceTest {
         toAccount = new Account(Currency.EUR, AccountType.MainAccount.getInstance());
         setAccountId(toAccount, toAccountId);
         
-        // Mock the DoubleEntryService to return our expected balances - using lenient to avoid UnnecessaryStubbingException
-        lenient().when(doubleEntryService.calculateBalance(eq(fromAccountId))).thenReturn(new BigDecimal("500.00"));
-        lenient().when(doubleEntryService.calculateBalance(eq(toAccountId))).thenReturn(new BigDecimal("200.00"));
+        // Balance mocks are set in individual tests where needed, not globally
     }
     
     @Test
     void validateTransferParameters_ShouldReturnAccountsWhenValid() {
         // Arrange
-        lenient().when(accountRepository.findById(fromAccountId)).thenReturn(Optional.of(fromAccount));
-        lenient().when(accountRepository.findById(toAccountId)).thenReturn(Optional.of(toAccount));
-        lenient().when(transactionRepository.findByReferenceIgnoreCase(referenceId)).thenReturn(Optional.empty());
+        when(accountRepository.findById(fromAccountId)).thenReturn(Optional.of(fromAccount));
+        when(accountRepository.findById(toAccountId)).thenReturn(Optional.of(toAccount));
+        when(transactionRepository.findByReferenceIgnoreCase(referenceId)).thenReturn(Optional.empty());
+        
+        // Mock the balance for sufficient funds validation
+        when(doubleEntryService.calculateBalance(eq(fromAccountId))).thenReturn(new BigDecimal("500.00"));
         
         // Act
         TransferValidationResult result = validationService.validateTransferParameters(
@@ -103,7 +104,7 @@ class ValidationServiceTest {
     @Test
     void validateTransferParameters_ShouldThrowWhenFromAccountNotFound() {
         // Arrange
-        lenient().when(accountRepository.findById(fromAccountId)).thenReturn(Optional.empty());
+        when(accountRepository.findById(fromAccountId)).thenReturn(Optional.empty());
         
         // Act & Assert
         AccountNotFoundException exception = assertThrows(AccountNotFoundException.class, () -> {
@@ -115,8 +116,8 @@ class ValidationServiceTest {
     @Test
     void validateTransferParameters_ShouldThrowWhenToAccountNotFound() {
         // Arrange
-        lenient().when(accountRepository.findById(fromAccountId)).thenReturn(Optional.of(fromAccount));
-        lenient().when(accountRepository.findById(toAccountId)).thenReturn(Optional.empty());
+        when(accountRepository.findById(fromAccountId)).thenReturn(Optional.of(fromAccount));
+        when(accountRepository.findById(toAccountId)).thenReturn(Optional.empty());
         
         // Act & Assert
         AccountNotFoundException exception = assertThrows(AccountNotFoundException.class, () -> {
@@ -131,8 +132,8 @@ class ValidationServiceTest {
         Account usdAccount = new Account(Currency.USD, AccountType.MainAccount.getInstance());
         setAccountId(usdAccount, toAccountId);
         
-        lenient().when(accountRepository.findById(fromAccountId)).thenReturn(Optional.of(fromAccount));
-        lenient().when(accountRepository.findById(toAccountId)).thenReturn(Optional.of(usdAccount));
+        when(accountRepository.findById(fromAccountId)).thenReturn(Optional.of(fromAccount));
+        when(accountRepository.findById(toAccountId)).thenReturn(Optional.of(usdAccount));
         
         // Act & Assert
         CurrencyMismatchException exception = assertThrows(CurrencyMismatchException.class, () -> {
@@ -153,7 +154,7 @@ class ValidationServiceTest {
                 referenceId
         );
         
-        lenient().when(transactionRepository.findByReferenceIgnoreCase(referenceId)).thenReturn(Optional.of(existingTransaction));
+        when(transactionRepository.findByReferenceIgnoreCase(referenceId)).thenReturn(Optional.of(existingTransaction));
         
         // Act & Assert
         InvalidTransactionException exception = assertThrows(InvalidTransactionException.class, () -> {
@@ -174,9 +175,10 @@ class ValidationServiceTest {
                 referenceId
         );
         
-        lenient().when(transactionRepository.findByReferenceIgnoreCase(referenceId)).thenReturn(Optional.of(existingTransaction));
-        lenient().when(accountRepository.findById(fromAccountId)).thenReturn(Optional.of(fromAccount));
-        lenient().when(accountRepository.findById(toAccountId)).thenReturn(Optional.of(toAccount));
+        // The only mock we need - existing transaction is found
+        when(transactionRepository.findByReferenceIgnoreCase(referenceId)).thenReturn(Optional.of(existingTransaction));
+        
+        // Other mocks are not needed since the method returns early when an existing transaction is found
         
         // Act
         TransferValidationResult result = validationService.validateTransferParameters(
@@ -194,6 +196,9 @@ class ValidationServiceTest {
         // Arrange
         BigDecimal largeAmount = new BigDecimal("1000.00");
         
+        // Mock the balance - account has less than the requested amount
+        when(doubleEntryService.calculateBalance(eq(fromAccountId))).thenReturn(new BigDecimal("500.00"));
+        
         // Act & Assert
         InsufficientFundsException exception = assertThrows(InsufficientFundsException.class, () -> {
             validationService.validateSufficientFunds(fromAccount, largeAmount);
@@ -203,7 +208,8 @@ class ValidationServiceTest {
     
     @Test
     void validateSufficientFunds_ShouldPassWithSufficientFunds() {
-        // Arrange - using the default setup with 500.00 balance
+        // Arrange - set up sufficient balance
+        when(doubleEntryService.calculateBalance(eq(fromAccountId))).thenReturn(new BigDecimal("500.00"));
         
         // Act & Assert - No exception should be thrown
         validationService.validateSufficientFunds(fromAccount, amount);
@@ -213,7 +219,11 @@ class ValidationServiceTest {
     void validateSufficientFunds_ShouldRespectAccountType() {
         // Arrange
         Account systemAccount = new Account(Currency.EUR, AccountType.SystemAccount.getInstance());
-        setAccountId(systemAccount, UUID.randomUUID());
+        UUID systemAccountId = UUID.randomUUID();
+        setAccountId(systemAccount, systemAccountId);
+        
+        // Mock the balance for this specific account
+        when(doubleEntryService.calculateBalance(eq(systemAccountId))).thenReturn(new BigDecimal("100.00"));
         
         BigDecimal largeAmount = new BigDecimal("1000000.00");  // Very large amount
         

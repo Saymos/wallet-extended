@@ -9,9 +9,9 @@
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>com.cubeia</groupId>
-	<artifactId>wallet</artifactId>
+	<artifactId>wallet-extended</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name>wallet</name>
+	<name>wallet-extended</name>
 	<description>Wallet coding challenge</description>
 	<url/>
 	<licenses>

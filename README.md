@@ -1,4 +1,4 @@
-# Cubeia Wallet Service
+# Cubeia Wallet-Extended Service
 
 A Spring Boot-based wallet service that provides REST APIs for account creation, balance checks, and transfers between accounts.
 
@@ -38,7 +38,7 @@ This will compile the code, run the tests (including integration tests), and gen
 To run the application:
 
 ```bash
-java -jar target/wallet-0.0.1-SNAPSHOT.jar
+java -jar target/wallet-extended-0.0.1-SNAPSHOT.jar
 ```
 
 Or using Maven:

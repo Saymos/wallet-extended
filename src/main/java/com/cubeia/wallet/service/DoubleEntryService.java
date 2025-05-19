@@ -61,31 +61,30 @@ public class DoubleEntryService {
     @Transactional
     private void ensureSystemFundingAccount() {
         try {
+            log.info("[SystemAccount] Ensuring system funding account exists with ID: {}", SYSTEM_FUNDING_ACCOUNT_ID);
             accountRepository.findById(SYSTEM_FUNDING_ACCOUNT_ID)
                 .orElseGet(() -> {
-                    // Create the system account with explicit ID
-                    Account systemAccount = new Account(Currency.EUR, AccountType.SystemAccount.getInstance());
-                    
+                    log.info("[SystemAccount] System funding account not found, creating new one.");
+                    // Use the new constructor to set the ID
+                    Account systemAccount = new Account(SYSTEM_FUNDING_ACCOUNT_ID, Currency.EUR, AccountType.SystemAccount.getInstance());
                     try {
-                        // Use reflection to set the ID since it's normally generated
-                        java.lang.reflect.Field idField = Account.class.getDeclaredField("id");
-                        idField.setAccessible(true);
-                        idField.set(systemAccount, SYSTEM_FUNDING_ACCOUNT_ID);
-                        
-                        // Save the account, ignoring concurrent creation errors
-                        try {
-                            return accountRepository.save(systemAccount);
-                        } catch (RuntimeException | Error e) {
-                            log.warn("Note: System funding account may have been created by another thread: {}", e.getMessage());
-                            return systemAccount;
-                        }
-                    } catch (NoSuchFieldException | IllegalAccessException ex) {
-                        log.warn("Failed to create system funding account via reflection: {}", ex.getMessage());
+                        Account saved = accountRepository.save(systemAccount);
+                        log.info("[SystemAccount] System funding account created: ID={}, Type={}, Currency={}", saved.getId(), saved.getAccountType(), saved.getCurrency());
+                        return saved;
+                    } catch (RuntimeException | Error e) {
+                        log.warn("[SystemAccount] Note: System funding account may have been created by another thread: {}", e.getMessage());
                         return systemAccount;
                     }
                 });
+            // Verification step
+            Account sysAcc = accountRepository.findById(SYSTEM_FUNDING_ACCOUNT_ID).orElse(null);
+            if (sysAcc != null) {
+                log.info("[SystemAccount] Verified system funding account in DB: ID={}, Type={}, Currency={}", sysAcc.getId(), sysAcc.getAccountType(), sysAcc.getCurrency());
+            } else {
+                log.error("[SystemAccount] ERROR: System funding account with ID {} not found after creation!", SYSTEM_FUNDING_ACCOUNT_ID);
+            }
         } catch (RuntimeException | Error e) {
-            log.warn("Failed to create system funding account: {}", e.getMessage());
+            log.warn("[SystemAccount] Failed to create or verify system funding account: {}", e.getMessage());
         }
     }
     

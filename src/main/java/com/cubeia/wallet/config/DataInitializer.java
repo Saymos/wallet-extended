@@ -65,70 +65,60 @@ public class DataInitializer implements CommandLineRunner {
         }
     }
     
-    /**
-     * Helper method to set the ID field of an Account using reflection.
-     * This allows us to set a predefined UUID without adding a specific constructor.
-     * 
-     * @param account The account to set the ID on
-     * @param id The UUID to set as the account's ID
-     * @throws RuntimeException if reflection fails
-     */
-    private void setAccountId(Account account, UUID id) {
-        try {
-            java.lang.reflect.Field idField = Account.class.getDeclaredField("id");
-            idField.setAccessible(true);
-            idField.set(account, id);
-        } catch (NoSuchFieldException | IllegalAccessException e) {
-            throw new RuntimeException("Failed to set account ID via reflection", e);
-        }
-    }
-    
     private void createOrUpdateSystemAccount() {
         try {
+            log.info("[SystemAccount] Checking existence of system account with ID: {}", SYSTEM_ACCOUNT_ID);
             boolean exists = accountRepository.existsById(SYSTEM_ACCOUNT_ID);
-            log.info("System account existence check: {}", exists);
+            log.info("[SystemAccount] Existence check result: {}", exists);
             
             if (!exists) {
-                log.info("Creating system account with ID: {}", SYSTEM_ACCOUNT_ID);
+                log.info("[SystemAccount] Creating system account with ID: {}", SYSTEM_ACCOUNT_ID);
                 
-                // Create account without ID in constructor
-                Account systemAccount = new Account(Currency.EUR, AccountType.SystemAccount.getInstance());
-                // Set ID using reflection
-                setAccountId(systemAccount, SYSTEM_ACCOUNT_ID);
-                
+                // Use the new constructor to set the ID
+                Account systemAccount = new Account(SYSTEM_ACCOUNT_ID, Currency.EUR, AccountType.SystemAccount.getInstance());
                 Account saved = accountRepository.save(systemAccount);
-                
-                log.info("System account created successfully: {}", saved.getId());
+                log.info("[SystemAccount] System account created successfully: {}", saved.getId());
             } else {
-                log.info("System account already exists with ID: {}", SYSTEM_ACCOUNT_ID);
+                log.info("[SystemAccount] System account already exists with ID: {}", SYSTEM_ACCOUNT_ID);
+            }
+            // Verification step
+            Account sysAcc = accountRepository.findById(SYSTEM_ACCOUNT_ID).orElse(null);
+            if (sysAcc != null) {
+                log.info("[SystemAccount] Verified system account in DB: ID={}, Type={}, Currency={}", sysAcc.getId(), sysAcc.getAccountType(), sysAcc.getCurrency());
+            } else {
+                log.error("[SystemAccount] ERROR: System account with ID {} not found after creation!", SYSTEM_ACCOUNT_ID);
             }
         } catch (Exception e) {
-            log.error("Error creating system account: {}", e.getMessage(), e);
+            log.error("[SystemAccount] Error creating or verifying system account: {}", e.getMessage(), e);
             throw e; // Rethrow to fail initialization
         }
     }
     
     private void createOrUpdateTestAccount() {
         try {
+            log.info("[TestAccount] Checking existence of test account with ID: {}", TEST_ACCOUNT_ID);
             boolean exists = accountRepository.existsById(TEST_ACCOUNT_ID);
-            log.info("Test account existence check: {}", exists);
+            log.info("[TestAccount] Existence check result: {}", exists);
             
             if (!exists) {
-                log.info("Creating test account with ID: {}", TEST_ACCOUNT_ID);
+                log.info("[TestAccount] Creating test account with ID: {}", TEST_ACCOUNT_ID);
                 
-                // Create account without ID in constructor
-                Account testAccount = new Account(Currency.EUR, AccountType.MainAccount.getInstance());
-                // Set ID using reflection
-                setAccountId(testAccount, TEST_ACCOUNT_ID);
-                
+                // Use the new constructor to set the ID
+                Account testAccount = new Account(TEST_ACCOUNT_ID, Currency.EUR, AccountType.MainAccount.getInstance());
                 Account saved = accountRepository.save(testAccount);
-                
-                log.info("Test account created successfully: {}", saved.getId());
+                log.info("[TestAccount] Test account created successfully: {}", saved.getId());
             } else {
-                log.info("Test account already exists with ID: {}", TEST_ACCOUNT_ID);
+                log.info("[TestAccount] Test account already exists with ID: {}", TEST_ACCOUNT_ID);
+            }
+            // Verification step
+            Account testAcc = accountRepository.findById(TEST_ACCOUNT_ID).orElse(null);
+            if (testAcc != null) {
+                log.info("[TestAccount] Verified test account in DB: ID={}, Type={}, Currency={}", testAcc.getId(), testAcc.getAccountType(), testAcc.getCurrency());
+            } else {
+                log.error("[TestAccount] ERROR: Test account with ID {} not found after creation!", TEST_ACCOUNT_ID);
             }
         } catch (Exception e) {
-            log.error("Error creating test account: {}", e.getMessage(), e);
+            log.error("[TestAccount] Error creating or verifying test account: {}", e.getMessage(), e);
             throw e; // Rethrow to fail initialization
         }
     }

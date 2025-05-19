@@ -10,6 +10,7 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 
 /**
@@ -25,7 +26,6 @@ import jakarta.persistence.Table;
 public class Account {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
     @Column(name = "id", updatable = false, nullable = false)
     private UUID id;
     
@@ -56,6 +56,28 @@ public class Account {
     public Account(Currency currency, AccountType accountType) {
         this.currency = currency;
         this.accountType = accountType;
+    }
+    
+    /**
+     * Special constructor for system accounts with fixed ID.
+     * 
+     * @param id The predefined UUID for the account
+     * @param currency The currency for this account
+     * @param accountType The type of account
+     */
+    public Account(UUID id, Currency currency, AccountType accountType) {
+        this.id = id;
+        this.currency = currency;
+        this.accountType = accountType;
+    }
+
+    // Add PrePersist method to handle ID assignment
+    @PrePersist
+    void onPrePersist() {
+        // Only generate an ID if one hasn't been explicitly set
+        if (id == null) {
+            id = UUID.randomUUID();
+        }
     }
     
     public UUID getId() {

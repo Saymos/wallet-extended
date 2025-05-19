@@ -13,8 +13,10 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.cubeia.wallet.dto.BalanceResponseDto;
+import com.cubeia.wallet.dto.CreateAccountRequestDto;
 import com.cubeia.wallet.dto.TransferRequestDto;
 import com.cubeia.wallet.model.Account;
+import com.cubeia.wallet.model.AccountType;
 import com.cubeia.wallet.model.LedgerEntry;
 import com.cubeia.wallet.model.Transaction;
 import com.cubeia.wallet.repository.TransactionRepository;
@@ -51,19 +53,43 @@ public class WalletController {
     }
 
     /**
-     * Creates a new account with zero balance.
+     * Creates a new account with specified currency and account type.
      *
+     * @param requestDto the account creation request
      * @return the created account
      */
     @PostMapping("/accounts")
     @Operation(summary = "Create a new account", 
-               description = "Creates a new account with zero balance")
+               description = "Creates a new account with specified currency and account type")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "201", description = "Account created",
-                     content = @Content(schema = @Schema(implementation = Account.class)))
+                     content = @Content(schema = @Schema(implementation = Account.class))),
+        @ApiResponse(responseCode = "400", description = "Invalid request parameters")
     })
-    public ResponseEntity<Account> createAccount() {
-        Account account = accountService.createAccount();
+    public ResponseEntity<Account> createAccount(@RequestBody CreateAccountRequestDto requestDto) {
+        // Convert the account type string to the appropriate AccountType instance
+        AccountType accountType;
+        switch (requestDto.accountType().toUpperCase()) {
+            case "MAIN":
+                accountType = AccountType.MainAccount.getInstance();
+                break;
+            case "BONUS":
+                accountType = AccountType.BonusAccount.getInstance();
+                break;
+            case "PENDING":
+                accountType = AccountType.PendingAccount.getInstance();
+                break;
+            case "JACKPOT":
+                accountType = AccountType.JackpotAccount.getInstance();
+                break;
+            case "SYSTEM":
+                accountType = AccountType.SystemAccount.getInstance();
+                break;
+            default:
+                return ResponseEntity.badRequest().build();
+        }
+        
+        Account account = accountService.createAccount(requestDto.currency(), accountType);
         return new ResponseEntity<>(account, HttpStatus.CREATED);
     }
 

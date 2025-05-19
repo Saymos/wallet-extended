@@ -190,7 +190,7 @@ class TransactionServiceTest {
 
         // Mock validation service - this is what's actually used in the test
         when(validationService.validateTransferParameters(fromAccountId, toAccountId, amount, null))
-            .thenReturn(new ValidationService.TransferValidationResult(fromAccount, toAccount, null));
+            .thenReturn(new TransferValidationResult(fromAccount, toAccount, null));
 
         // Mock account repository
         when(accountRepository.findById(fromAccountId)).thenReturn(Optional.of(fromAccount));
@@ -368,7 +368,7 @@ class TransactionServiceTest {
 
         // Mock validation service
         when(validationService.validateTransferParameters(fromAccountId, toAccountId, amount, null))
-            .thenReturn(new ValidationService.TransferValidationResult(fromAccount, toAccount, null));
+            .thenReturn(new TransferValidationResult(fromAccount, toAccount, null));
 
         // Mock account repository
         when(accountRepository.findById(fromAccountId)).thenReturn(Optional.of(fromAccount));
@@ -501,7 +501,7 @@ class TransactionServiceTest {
         
         // Mock validation service
         when(validationService.validateTransferParameters(fromAccountId, toAccountId, amount, null))
-            .thenReturn(new ValidationService.TransferValidationResult(fromAccount, toAccount, null));
+            .thenReturn(new TransferValidationResult(fromAccount, toAccount, null));
         
         // Mock repository to return saved transaction
         when(transactionRepository.save(any(Transaction.class))).thenAnswer(invocation -> {
@@ -566,7 +566,7 @@ class TransactionServiceTest {
         
         // Mock validation service
         when(validationService.validateTransferParameters(fromAccountId, toAccountId, amount, null))
-            .thenReturn(new ValidationService.TransferValidationResult(fromAccount, toAccount, null));
+            .thenReturn(new TransferValidationResult(fromAccount, toAccount, null));
         
         // Mock repository to return saved transaction
         when(transactionRepository.save(any(Transaction.class))).thenAnswer(invocation -> {
@@ -656,7 +656,7 @@ class TransactionServiceTest {
         
         // Mock validation service to return existing transaction
         when(validationService.validateTransferParameters(fromAccountId, toAccountId, amount, referenceId))
-            .thenReturn(new ValidationService.TransferValidationResult(fromAccount, toAccount, existingTransaction));
+            .thenReturn(new TransferValidationResult(fromAccount, toAccount, existingTransaction));
         
         // Act
         Transaction result = transactionService.transfer(fromAccountId, toAccountId, amount, referenceId, null);

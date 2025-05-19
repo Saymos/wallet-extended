@@ -21,8 +21,10 @@ import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.annotation.DirtiesContext;
 
@@ -62,20 +64,38 @@ public class WalletControllerTest {
 
     @BeforeEach
     public void setup() {
-        // Clear database for clean test
+        // Clear transactions but keep accounts
         transactionRepository.deleteAll();
-        accountRepository.deleteAll();
         
-        // Create a system account with a large balance for testing
-        systemAccountId = createSystemAccount();
+        // Find the system account created by DataInitializer
+        Account systemAccount = accountRepository.findAll().stream()
+            .filter(account -> "SYSTEM".equals(account.getAccountType().name()))
+            .findFirst()
+            .orElseThrow(() -> new RuntimeException("System account not found - ensure DataInitializer has run"));
+        
+        systemAccountId = systemAccount.getId();
+        
+        // Add funds to the system account (or ensure it has funds)
+        if (doubleEntryService.calculateBalance(systemAccountId).compareTo(BigDecimal.ZERO) <= 0) {
+            doubleEntryService.createSystemCreditEntry(
+                systemAccountId,
+                new BigDecimal("1000000.00"),  // 1 million units
+                "System account initial funding for tests"
+            );
+        }
     }
 
     @Test
     public void createAccount_ShouldReturnCreatedAccountWithZeroBalance() {
         // when
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        String requestBody = "{\"currency\":\"EUR\",\"accountType\":\"MAIN\"}";
+        HttpEntity<String> request = new HttpEntity<>(requestBody, headers);
+        
         ResponseEntity<Account> response = restTemplate.postForEntity(
                 getBaseUrl() + "/accounts",
-                null,
+                request,
                 Account.class);
 
         // then
@@ -135,8 +155,8 @@ public class WalletControllerTest {
             fromAccount.getId(),
             toAccount.getId(),
             new BigDecimal("100.00"),
-            null,
-            null
+            UUID.randomUUID().toString(),
+            "Test transfer between accounts"
         );
 
         // when
@@ -152,8 +172,8 @@ public class WalletControllerTest {
         BigDecimal fromBalance = getAccountBalance(fromAccount.getId());
         BigDecimal toBalance = getAccountBalance(toAccount.getId());
 
-        assertThat(fromBalance.compareTo(new BigDecimal("400.00"))).isEqualTo(0);
-        assertThat(toBalance.compareTo(new BigDecimal("100.00"))).isEqualTo(0);
+        assertThat(fromBalance).isEqualByComparingTo(new BigDecimal("400.00"));
+        assertThat(toBalance).isEqualByComparingTo(new BigDecimal("100.00"));
     }
 
     @Test
@@ -166,8 +186,8 @@ public class WalletControllerTest {
             fromAccount.getId(),
             toAccount.getId(),
             new BigDecimal("100.00"),
-            null,
-            null
+            UUID.randomUUID().toString(),
+            "Test transfer with insufficient funds"
         );
 
         // when
@@ -192,8 +212,8 @@ public class WalletControllerTest {
         BigDecimal fromBalance = getAccountBalance(fromAccount.getId());
         BigDecimal toBalance = getAccountBalance(toAccount.getId());
 
-        assertThat(fromBalance.compareTo(new BigDecimal("50.00"))).isEqualTo(0);
-        assertThat(toBalance.compareTo(BigDecimal.ZERO)).isEqualTo(0);
+        assertThat(fromBalance).isEqualByComparingTo(new BigDecimal("50.00"));
+        assertThat(toBalance).isEqualByComparingTo(BigDecimal.ZERO);
     }
 
     @Test
@@ -205,8 +225,8 @@ public class WalletControllerTest {
             UUID.randomUUID(),
             toAccount.getId(),
             new BigDecimal("100.00"),
-            null,
-            null
+            UUID.randomUUID().toString(),
+            "Test transfer with non-existent account"
         );
 
         // when
@@ -238,8 +258,8 @@ public class WalletControllerTest {
             fromAccount.getId(),
             toAccount.getId(),
             new BigDecimal("-50.00"),
-            null,
-            null
+            UUID.randomUUID().toString(),
+            "Test transfer with invalid amount"
         );
 
         // when
@@ -272,14 +292,16 @@ public class WalletControllerTest {
             fromAccount.getId(),
             toAccount.getId(),
             new BigDecimal("100.00"),
-            null,
-            null
+            UUID.randomUUID().toString(),
+            "Test transaction for getTransactions test"
         );
 
-        restTemplate.postForEntity(
+        ResponseEntity<Void> transferResponse = restTemplate.postForEntity(
                 getBaseUrl() + "/transfers",
                 transferRequest,
                 Void.class);
+                
+        assertThat(transferResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
 
         // when - get sender's transactions
         ResponseEntity<List<Map<String, Object>>> fromResponse = restTemplate.exchange(
@@ -301,7 +323,7 @@ public class WalletControllerTest {
         assertThat(fromResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
         List<Map<String, Object>> fromTransactions = fromResponse.getBody();
         assertNotNull(fromTransactions, "Transactions list should not be null");
-        // Only verify that transactions are present, not the exact count
+        // Verify that transactions are present
         assertThat(fromTransactions.size()).isGreaterThan(0);
 
         assertThat(toResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
@@ -336,23 +358,27 @@ public class WalletControllerTest {
         final CountDownLatch startLatch = new CountDownLatch(1);
         final CountDownLatch endLatch = new CountDownLatch(numOfThreads);
 
-        TransferRequestDto transferRequest = new TransferRequestDto(
-            fromAccount.getId(),
-            toAccount.getId(),
-            new BigDecimal("100.00"),
-            null,
-            null
-        );
-
         // when - execute transfers concurrently
         for (int i = 0; i < numOfThreads; i++) {
+            final String referenceId = "CONCURRENT-" + UUID.randomUUID().toString();
+            final TransferRequestDto transferRequest = new TransferRequestDto(
+                fromAccount.getId(),
+                toAccount.getId(),
+                new BigDecimal("100.00"),
+                referenceId,
+                "Concurrent transfer test #" + i
+            );
+            
             executorService.submit(() -> {
                 try {
                     startLatch.await(); // Wait for signal to start
-                    restTemplate.postForEntity(
+                    ResponseEntity<Void> response = restTemplate.postForEntity(
                             getBaseUrl() + "/transfers",
                             transferRequest,
                             Void.class);
+                    
+                    // We only care that it completes, not about the specific response
+                    // as some requests might fail due to concurrent updates
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                 } catch (Exception e) {
@@ -371,21 +397,30 @@ public class WalletControllerTest {
         // then
         assertTrue(completed, "All transfers should complete within timeout");
 
-        // Verify the final balances
+        // Verify the final balances - may need to wait briefly for persistence
+        Thread.sleep(500); // Small delay to ensure all DB operations are complete
+        
         BigDecimal fromBalance = getAccountBalance(fromAccount.getId());
         BigDecimal toBalance = getAccountBalance(toAccount.getId());
 
-        assertThat(fromBalance.compareTo(new BigDecimal("0.00"))).isEqualTo(0);
-        assertThat(toBalance.compareTo(new BigDecimal("1000.00"))).isEqualTo(0);
+        // The from account should have had 1000 and sent 100 x 10 = 1000
+        assertThat(fromBalance).isEqualByComparingTo(BigDecimal.ZERO);
+        // The to account should have received 100 x 10 = 1000 
+        assertThat(toBalance).isEqualByComparingTo(new BigDecimal("1000.00"));
     }
 
     // Helper methods
 
     private Account createAccountWithBalance(BigDecimal initialBalance) {
         // Create an account
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        String requestBody = "{\"currency\":\"EUR\",\"accountType\":\"MAIN\"}";
+        HttpEntity<String> request = new HttpEntity<>(requestBody, headers);
+        
         ResponseEntity<Account> createResponse = restTemplate.postForEntity(
                 getBaseUrl() + "/accounts",
-                null,
+                request,
                 Account.class);
         
         Account account = createResponse.getBody();
@@ -398,15 +433,21 @@ public class WalletControllerTest {
                 systemAccountId,
                 account.getId(),
                 initialBalance,
-                null,
-                null
+                UUID.randomUUID().toString(), // Add unique reference ID for idempotency
+                "Initial funding for test account"
             );
             
-            restTemplate.postForEntity(
+            ResponseEntity<Void> transferResponse = restTemplate.postForEntity(
                 getBaseUrl() + "/transfers",
                 transferRequest,
                 Void.class
             );
+            
+            assertThat(transferResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+            
+            // Verify the account was properly funded
+            BigDecimal balance = getAccountBalance(account.getId());
+            assertThat(balance).isEqualByComparingTo(initialBalance);
         }
         
         return account;
@@ -414,27 +455,14 @@ public class WalletControllerTest {
     
     /**
      * Creates a system account with a very large balance for use in tests.
+     * This method is no longer needed since we're using the system account
+     * created by DataInitializer, but kept for backward compatibility.
      * 
-     * @return the ID of the created system account
+     * @return the ID of the system account
      */
     private UUID createSystemAccount() {
-        // Create a new system account
-        ResponseEntity<Account> createResponse = restTemplate.postForEntity(
-                getBaseUrl() + "/accounts",
-                null,
-                Account.class);
-        
-        Account systemAccount = createResponse.getBody();
-        assertNotNull(systemAccount, "System account should not be null");
-        
-        // Add a very large credit entry to the system account
-        doubleEntryService.createSystemCreditEntry(
-            systemAccount.getId(),
-            new BigDecimal("1000000.00"),  // 1 million units
-            "System account initial funding"
-        );
-        
-        return systemAccount.getId();
+        // Simply return the known system account ID
+        return systemAccountId;
     }
     
     private BigDecimal getAccountBalance(UUID accountId) {

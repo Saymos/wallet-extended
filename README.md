@@ -13,6 +13,38 @@ This application implements a simple wallet service with the following features:
 
 The implementation ensures thread safety during concurrent transfers using pessimistic locking.
 
+## Test Account
+
+For convenience, the application automatically creates a test account with funds at startup:
+
+- **Account ID**: `00000000-0000-0000-0000-000000000100`
+- **Initial Balance**: 1000.00 EUR
+- **Account Type**: Main Account
+
+You can use this account for testing transfers and other operations without needing to create and fund an account manually.
+
+### Verifying Test Account Data
+
+You can verify the test account and its balance using the H2 Console:
+
+1. Access the H2 Console at [http://localhost:8080/h2-console](http://localhost:8080/h2-console)
+2. Use the following connection settings:
+   - JDBC URL: `jdbc:h2:mem:wallet-extended`
+   - Username: `SA`
+   - Password: (leave empty)
+3. Click "Connect"
+4. Query test account data with:
+   ```sql
+   SELECT * FROM ACCOUNTS WHERE ID = '00000000-0000-0000-0000-000000000100';
+   ```
+5. Check balance with:
+   ```sql
+   SELECT 
+     COALESCE(SUM(CASE WHEN ENTRY_TYPE = 'CREDIT' THEN AMOUNT ELSE -AMOUNT END), 0) AS BALANCE 
+   FROM LEDGER_ENTRIES 
+   WHERE ACCOUNT_ID = '00000000-0000-0000-0000-000000000100';
+   ```
+
 ## Technologies
 
 - Java 21
@@ -24,6 +56,11 @@ The implementation ensures thread safety during concurrent transfers using pessi
 - JaCoCo for test coverage
 
 ## Build Instructions
+
+```bash
+# Clone the repository (if not done already)
+git clone https://github.com/Saymos/wallet-focused.git
+cd wallet-focused
 
 To build the application, run:
 

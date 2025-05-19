@@ -20,8 +20,7 @@ import com.cubeia.wallet.model.Transaction;
 import com.cubeia.wallet.model.TransactionType;
 import com.cubeia.wallet.repository.AccountRepository;
 import com.cubeia.wallet.repository.TransactionRepository;
-import com.cubeia.wallet.service.ValidationService.TransferValidationResult;
-
+import com.cubeia.wallet.service.TransferValidationResult;
 /**
  * Service for managing account transactions.
  */

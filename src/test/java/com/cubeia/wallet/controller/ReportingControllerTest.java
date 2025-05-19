@@ -153,13 +153,14 @@ public class ReportingControllerTest {
         // Arrange
         UUID fromAccountId = UUID.randomUUID();
         UUID toAccountId = UUID.randomUUID();
+        LocalDateTime timestamp = LocalDateTime.now();
         
         TransactionHistoryDTO.LedgerEntryDTO entry1 = new TransactionHistoryDTO.LedgerEntryDTO(
                 UUID.randomUUID(),
                 fromAccountId,
                 EntryType.DEBIT.name(),
                 new BigDecimal("100.00"),
-                now,
+                timestamp,
                 "Test debit"
         );
         
@@ -168,7 +169,7 @@ public class ReportingControllerTest {
                 toAccountId,
                 EntryType.CREDIT.name(),
                 new BigDecimal("100.00"),
-                now,
+                timestamp,
                 "Test credit"
         );
         
@@ -179,12 +180,12 @@ public class ReportingControllerTest {
                 new BigDecimal("100.00"),
                 Currency.EUR,
                 TransactionType.TRANSFER,
-                now,
+                timestamp,
                 "TEST-REF-123",
                 Arrays.asList(entry1, entry2)
         );
         
-        when(reportingService.getTransactionHistory(transactionId)).thenReturn(history);
+        when(reportingService.getTransactionHistory(eq(transactionId))).thenReturn(history);
 
         // Act & Assert
         mockMvc.perform(get("/reports/transactions/{transactionId}", transactionId))
@@ -206,12 +207,17 @@ public class ReportingControllerTest {
     @Test
     void testGetAccountLedger() throws Exception {
         // Arrange
+        int pageSize = 10;
+        int pageNumber = 0;
+        LocalDateTime timestamp1 = now.minusDays(1);
+        LocalDateTime timestamp2 = now;
+        
         AccountLedgerDTO.LedgerEntryWithBalanceDTO entry1 = new AccountLedgerDTO.LedgerEntryWithBalanceDTO(
                 UUID.randomUUID(),
                 UUID.randomUUID(),
                 EntryType.CREDIT,
                 new BigDecimal("50.00"),
-                now.minusDays(1),
+                timestamp1,
                 "Credit test",
                 new BigDecimal("50.00")
         );
@@ -221,7 +227,7 @@ public class ReportingControllerTest {
                 UUID.randomUUID(),
                 EntryType.DEBIT,
                 new BigDecimal("30.00"),
-                now,
+                timestamp2,
                 "Debit test",
                 new BigDecimal("20.00")
         );
@@ -233,12 +239,12 @@ public class ReportingControllerTest {
                 Arrays.asList(entry2, entry1)
         );
         
-        when(reportingService.getAccountLedger(eq(accountId), anyInt(), anyInt())).thenReturn(ledger);
+        when(reportingService.getAccountLedger(eq(accountId), eq(pageSize), eq(pageNumber))).thenReturn(ledger);
 
         // Act & Assert
         mockMvc.perform(get("/reports/accounts/{accountId}/ledger", accountId)
-                .param("pageSize", "10")
-                .param("pageNumber", "0"))
+                .param("pageSize", String.valueOf(pageSize))
+                .param("pageNumber", String.valueOf(pageNumber)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.accountId").value(accountId.toString()))
                 .andExpect(jsonPath("$.currency").value("EUR"))
@@ -255,12 +261,15 @@ public class ReportingControllerTest {
     @Test
     void testGetAccountStatement() throws Exception {
         // Arrange
-        LocalDateTime startDate = now.minusDays(30);
-        LocalDateTime endDate = now;
+        LocalDateTime startDate = now.minusDays(30).withNano(0); // Remove nanoseconds for consistent comparison
+        LocalDateTime endDate = now.withNano(0); // Remove nanoseconds for consistent comparison
+        
+        LocalDateTime txDate1 = now.minusDays(15).withNano(0);
+        LocalDateTime txDate2 = now.minusDays(5).withNano(0);
         
         AccountStatementDTO.TransactionSummaryDTO summary1 = new AccountStatementDTO.TransactionSummaryDTO(
                 UUID.randomUUID(),
-                now.minusDays(15),
+                txDate1,
                 "Withdrawal",
                 new BigDecimal("50.00"),
                 false
@@ -268,7 +277,7 @@ public class ReportingControllerTest {
         
         AccountStatementDTO.TransactionSummaryDTO summary2 = new AccountStatementDTO.TransactionSummaryDTO(
                 UUID.randomUUID(),
-                now.minusDays(5),
+                txDate2,
                 "Deposit",
                 new BigDecimal("75.00"),
                 true
@@ -287,7 +296,7 @@ public class ReportingControllerTest {
                 Arrays.asList(summary1, summary2)
         );
         
-        when(reportingService.getAccountStatement(eq(accountId), any(LocalDateTime.class), any(LocalDateTime.class)))
+        when(reportingService.getAccountStatement(eq(accountId), eq(startDate), eq(endDate)))
                 .thenReturn(statement);
 
         // Format dates for URL

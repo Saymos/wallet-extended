@@ -30,6 +30,7 @@ import com.cubeia.wallet.repository.AccountRepository;
 import com.cubeia.wallet.repository.TransactionRepository;
 import com.cubeia.wallet.service.DoubleEntryService;
 import com.cubeia.wallet.service.TransactionService;
+import com.cubeia.wallet.service.TransferValidationResult;
 import com.cubeia.wallet.service.ValidationService;
 
 /**
@@ -114,8 +115,8 @@ class TransactionIdempotencyTest {
     @Test
     public void testFirstTransactionWithReferenceId() {
         // Setup validation to pass
-        ValidationService.TransferValidationResult validationResult =
-            new ValidationService.TransferValidationResult(sourceAccount, destinationAccount, null);
+        TransferValidationResult validationResult =
+            new TransferValidationResult(sourceAccount, destinationAccount, null);
         when(validationService.validateTransferParameters(
             sourceAccount.getId(), destinationAccount.getId(), transferAmount, "TEST-REF-001"))
             .thenReturn(validationResult);
@@ -168,8 +169,8 @@ class TransactionIdempotencyTest {
         setField(existingTransaction, "id", UUID.randomUUID());
         
         // Setup validation to return the existing transaction 
-        ValidationService.TransferValidationResult validationResult =
-            new ValidationService.TransferValidationResult(sourceAccount, destinationAccount, existingTransaction);
+        TransferValidationResult validationResult =
+            new TransferValidationResult(sourceAccount, destinationAccount, existingTransaction);
         when(validationService.validateTransferParameters(
             sourceAccount.getId(), destinationAccount.getId(), transferAmount, "TEST-REF-002"))
             .thenReturn(validationResult);
@@ -218,8 +219,8 @@ class TransactionIdempotencyTest {
         setField(secondTransaction, "id", UUID.randomUUID());
         
         // Setup validation to pass
-        ValidationService.TransferValidationResult validationResult =
-            new ValidationService.TransferValidationResult(sourceAccount, destinationAccount, null);
+        TransferValidationResult validationResult =
+            new TransferValidationResult(sourceAccount, destinationAccount, null);
         when(validationService.validateTransferParameters(
                 eq(sourceAccount.getId()), eq(destinationAccount.getId()), eq(transferAmount), isNull()))
                 .thenReturn(validationResult);
